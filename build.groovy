@@ -72,7 +72,7 @@ node("${env.OS.toLowerCase()}") {
           condaPath = "/home/jenkins/.conda/"
         } 
  
-        isisEnv.add("$condaPath/envs/isis/bin:$PATH=${pwd()}/install/bin:condaPath/bin:${env.PATH}")
+        isisEnv.add("PATH=${pwd()}/install/bin:$condaPath/envs/isis/bin:$condaPath/bin:${env.PATH}")
         
         withEnv(isisEnv) {
 
@@ -142,6 +142,7 @@ node("${env.OS.toLowerCase()}") {
                         sh """
                             source activate ${condaPath}/envs/isis
                             echo $PATH
+                            which spiceinit
                             ctest -R _app_ -j4 -VV
                         """
                     }
