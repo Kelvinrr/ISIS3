@@ -72,11 +72,10 @@ node("${env.OS.toLowerCase()}") {
           condaPath = "/home/jenkins/.conda/"
         } 
  
-        isisEnv.add("PATH=${pwd()}/install/bin:$condaPath/envs/isis/bin:$condaPath/bin:${env.PATH}")
+        isisEnv.add("$condaPath/envs/isis/bin:$PATH=${pwd()}/install/bin:condaPath/bin:${env.PATH}")
         
         withEnv(isisEnv) {
 
-          println("Complete Environment:")
           sh 'printenv'
           println("Anaconda Path: " + condaPath)
           
@@ -88,7 +87,6 @@ node("${env.OS.toLowerCase()}") {
               conda config --set ssl_verify false 
               conda create -n isis python=3
           """
-           
           
           if (env.OS.toLowerCase() == "centos") {
               sh 'conda env update -n isis -f environment_gcc4.yml --prune'
@@ -129,7 +127,6 @@ node("${env.OS.toLowerCase()}") {
                                     source activate ${condaPath}/envs/isis
                                     ctest -R _unit_ -j4 -VV
                                 """
-
                         }
                     }
                 }
