@@ -39,7 +39,7 @@ pipeline {
           def groovy_utilities = load "${pwd()}/groovy_utilities.groovy"  
 
           def errors = []
-          def labels = ['CentOS', 'Fedora', 'Ubuntu', 'Mac'] // labels for Jenkins node types we will build on
+          def labels = ['Mac'] // labels for Jenkins node types we will build on
           def builders = [:] 
           
           println("Using Labels: " + labels)
