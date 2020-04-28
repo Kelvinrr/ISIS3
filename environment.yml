@@ -37,5 +37,5 @@ dependencies:
   - ninja
   - cmake>=3.15
   - make
-  - xalan-c              # latest version, unlikely to change
+  - xerces-c              # latest version, unlikely to change
   - doxygen 
