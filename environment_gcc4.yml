@@ -1,9 +1,8 @@
 channels:
-  - jessemapel
   - usgs-astrogeology
   - conda-forge
-  - probcomp
   - defaults
+  - krodriguez 
 
 dependencies:
   # Huge Depedencies 
@@ -21,7 +20,6 @@ dependencies:
   # Minor deps
   - suitesparse
   - gsl
-  - xerces-c
   - nanoflann
   - cspice
   - jama
@@ -34,9 +32,10 @@ dependencies:
   - tnt
   - embree
   - mesalib
-  - xalan-c
-
+  
   # build tools
   - ninja
   - cmake>=3.15
   - make
+  - xalan-c              # latest version, unlikely to change
+  - doxygen 
