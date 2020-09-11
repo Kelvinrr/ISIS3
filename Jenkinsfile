@@ -33,7 +33,7 @@ for (lbl in labels) {
 
                 condaEnv("isis3") {
                     // Environment
-                    loginShell """
+                    bash """
                         conda install -c conda-forge python=3 findutils
                         conda env update -f ${envFile} --prune
                         mkdir build install
@@ -49,7 +49,7 @@ for (lbl in labels) {
                             // Build
                             stageStatus = "Building ISIS on ${label}"
                             try {
-                                loginShell """
+                                bash """
                                     cmake -GNinja ${cmakeFlags.join(' ')} ../isis
                                     ninja -j${NUM_CORES} install
                                 """
@@ -61,7 +61,7 @@ for (lbl in labels) {
                             // Unit tests
                             stageStatus = "Running unit tests on ${label}"
                             try {
-                                loginShell "ctest -R _unit_ -j${NUM_CORES} -VV"
+                                bash "ctest -R _unit_ -j${NUM_CORES} -VV"
                             } catch(e) {
                                 errors.add(stageStatus)
                                 osFailed = true
@@ -70,14 +70,14 @@ for (lbl in labels) {
                             // App tests
                             stageStatus = "Running app tests on ${label}"
                             try {
-                                loginShell "ctest -R _app_ -j${NUM_CORES} -VV"
+                                bash "ctest -R _app_ -j${NUM_CORES} -VV"
                             } catch(e) {
                                 errors.add(stageStatus)
                                 osFailed = true
                             }
 
                             try {
-                                loginShell "ctest -R _module_ -j${NUM_CORES} -VV"
+                                bash "ctest -R _module_ -j${NUM_CORES} -VV"
                             } catch(e) {
                                 errors.add(stageStatus)
                                 osFailed = true
@@ -86,7 +86,7 @@ for (lbl in labels) {
                             // Gtests
                             stageStatus = "Running gtests on ${label}"
                             try {
-                                loginShell "ctest -R '.' -E '(_app_|_unit_|_module_)' -j${NUM_CORES} -VV"
+                                bash "ctest -R '.' -E '(_app_|_unit_|_module_)' -j${NUM_CORES} -VV"
                             } catch(e) {
                                 errors.add(stageStatus)
                                 osFailed = true
