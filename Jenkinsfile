@@ -34,6 +34,7 @@ for (lbl in labels) {
                 condaEnv("isis3") {
                     // Environment
                     bash """
+                        conda init bash
                         conda install -c conda-forge python=3 findutils
                         conda env update -f ${envFile} --prune
                         mkdir build install
