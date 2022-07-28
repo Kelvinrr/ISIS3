@@ -31,9 +31,10 @@ package:
   version: {{ version }}
 
 source:
-  git_url: 'https://github.com/USGS-Astrogeology/ISIS3.git'
-  git_tag: {{ version }}
-
+  git_url: 'https://github.com/kelvinrr/ISIS3.git'
+  git_branch: 7.1.0_testing
+  # git_tag: {{ version }}
+  #  git_recursive: True
   # url: 'https://github.com/USGS-Astrogeology/ISIS3/archive/{{ version }}.tar.gz'
   # sha256 is the prefered checksum -- you can get it for a file with:
   # `openssl sha256 <file name>`. Simply run this command with the .tar.gz
