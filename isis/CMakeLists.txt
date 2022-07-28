@@ -293,7 +293,6 @@ find_package(Geos    3.5.0     REQUIRED)
 find_package(Armadillo         REQUIRED)
 find_package(Threads)
 find_package(inja              REQUIRED)
-add_subdirectory(../gtest gtest)
 
 
 # Setup for googletest/googlemock before adding SensorUtilities so we build its tests
