@@ -294,6 +294,7 @@ find_package(Armadillo         REQUIRED)
 find_package(Threads)
 find_package(inja              REQUIRED)
 
+add_subdirectory(../gtest gtest)
 enable_testing()
 include(CTest)
 
