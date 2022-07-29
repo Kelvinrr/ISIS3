@@ -294,6 +294,8 @@ find_package(Armadillo         REQUIRED)
 find_package(Threads)
 find_package(inja              REQUIRED)
 
+enable_testing()
+include(CTest)
 
 # Setup for googletest/googlemock before adding SensorUtilities so we build its tests
 if(buildTests)
