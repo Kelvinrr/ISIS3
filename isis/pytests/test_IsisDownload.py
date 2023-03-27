@@ -9,6 +9,7 @@ from tempfile import TemporaryDirectory
 from pathlib import Path
 import tempfile
 
+
 from importlib.util import spec_from_loader, module_from_spec
 from importlib.machinery import SourceFileLoader
 
@@ -39,6 +40,32 @@ class MockedPopen:
 
         return {'out': stdout, 'stderr': stderr, 'args': self.args, 'returncode': self.returncode}
 
+
+def test_mission_config():
+    target = "galileo:" 
+    conf_path = did.find_conf()
+
+    def get_folder_files(subpath, recursive=False, include=[]): 
+        args = [str(subpath)]
+        if recursive: 
+            args.append("-R")
+        
+        include = [f'--include={pattern}' for pattern in include]
+        args.extend(include)
+        print(args)
+        stdout, stderr = did.rclone("lsf", conf_path, args)
+        if stderr: 
+            raise Exception(f"error running rclone: {stderr}")
+        return [folder for folder in stdout.decode().split("\n") if folder]
+
+    subpath = Path(target)
+    folders = get_folder_files(subpath)
+    assert "kernels/" in folders 
+    
+    folders = get_folder_files(subpath / "kernels" / "ck", True, ["kernel*.db"])
+    print(folders)
+
+    assert False 
 
 class MockedBustedPopen:
     def __init__(self, args, **kwargs):
@@ -74,3 +101,5 @@ def test_rclone_with_auth():
         res = did.rclone("lsf", "test", extra_args=["-l", "-R", "--format", "p", "--files-only", "--rc-web-gui", "user:pass"], redirect_stdout=True, redirect_stderr=True)
         assert res["out"].decode() == "Success"
         assert '--rc-web-gui' in res['args']
+
+
