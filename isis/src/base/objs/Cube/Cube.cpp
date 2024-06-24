@@ -1045,6 +1045,12 @@ namespace Isis {
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
 
+    if (m_format == Format::GTiff) {  
+      // write new type of blob
+      blob.WriteGdal(m_labelFileName->expanded().toLatin1().data()); 
+      return; // nothing else to do  
+    }
+
     // Write an attached blob
     if (LabelAttachment() == LabelAttachment::AttachedLabel) {
       QMutexLocker locker(m_mutex);
@@ -1326,9 +1332,6 @@ namespace Isis {
    */
   void Cube::setFormat(Format format) {
     openCheck();
-    if (format == GTiff && labelsAttached() != ExternalLabel) {
-      // Die
-    }
     m_format = format;
   }
 
@@ -1341,9 +1344,6 @@ namespace Isis {
    */
   void Cube::setLabelsAttached(LabelAttachment attach) {
     openCheck();
-    if (format() == GTiff && attach != ExternalLabel) {
-      // Die
-    }
     m_attached = attach;
   }
 
@@ -2368,8 +2368,10 @@ namespace Isis {
       if ((QString) core["Format"] == "BandSequential") {
         m_format = Bsq;
       }
-      else {
-        m_format = Tile;
+      else if ((QString) core["Format"] == "GTiff") {
+        m_format = GTiff;
+      } else {
+        m_format = Tile; 
       }
     }
     else {
@@ -2405,6 +2407,7 @@ namespace Isis {
     setPixelType(GdalPixelToIsis(band->GetRasterDataType()));
     setBaseMultiplier(band->GetOffset(), band->GetScale());
     delete geodataSet;
+
   }
 
   /**
@@ -2419,7 +2422,7 @@ namespace Isis {
 
     try {
       if (labelFileName.fileExists()) {
-        m_label = new Pvl(labelFileName.expanded());
+        m_label = new Pvl(labelFileName.expanded(), true);
         if (!m_label->objects()) {
           throw IException();
         }
@@ -2685,6 +2688,11 @@ namespace Isis {
     if (!isOpen()) {
       string msg = "Cube must be opened first before writing labels";
       throw IException(IException::Programmer, msg, _FILEINFO_);
+    }
+    
+    if (m_format == GTiff) { 
+      // dont write label
+      return; 
     }
 
     // Set the pvl's format template

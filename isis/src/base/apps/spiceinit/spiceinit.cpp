@@ -262,7 +262,6 @@ namespace Isis {
       }
     }
     icube->deleteGroup("CsmInfo");
-
     p.WriteHistory(*icube);
     p.EndProcess();
   }
@@ -596,7 +595,6 @@ namespace Isis {
       icube->putGroup(originalKernels);
       return false;
     }
-
     return true;
   }
 
