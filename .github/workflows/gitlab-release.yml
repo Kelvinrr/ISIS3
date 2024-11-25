@@ -9,7 +9,7 @@ on:
     types: [prereleased, released]
   push:
     branches:
-      - '*_RC*'
+      - '**_RC**'
 
 
 jobs:
