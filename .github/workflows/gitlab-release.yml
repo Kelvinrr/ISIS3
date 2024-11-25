@@ -9,7 +9,7 @@ on:
     types: [prereleased, released]
   push:
     branches:
-      - '*.*.*_RC*'
+      - '*_RC*'
     workflow_run:
         workflows: ["Github to Gitlab CI - Run CodeBuild"]
         types:
