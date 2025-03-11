@@ -1,0 +1,355 @@
+#!/bin/bash
+
+# Define environment name and package to install
+ISIS_LABEL="main"
+DOWNLOAD_DATA="YES"
+
+# Report error and reserves error code from a failed command
+failed_command() {
+    local _status=$?
+    if [ "${_status}" -ne 0 ]; then 
+        echo "Error: $1 failed" 
+        exit ${_status}
+    fi
+}
+
+print_help() {
+    printf "Usage: $0 [options] ISIS_LABEL ISIS_VERSION\n"
+    printf "Options:\n"
+    printf "\t-h, --help            Show this help message and exit\n"
+    printf "\t-n, --env_name        The name of the anaconda environment to create.\n"
+    printf "\t-m, --miniforge_dir   Define the directory to an anaconda package manager install location. "
+    printf "If you have an anaconda package manager already this argument will be ignored. If not "
+    printf "a version of miniforge will be installed at this location\n"
+    printf "\t-p, --data_prefix     The directory where ISISDATA is located. If this "
+    printf "directory doesn't exist then one will be made at its location\n"
+    printf "\t--no_data             Do not ask to download any data for the ISIS_DATA area.\n"
+    printf "\n"
+    printf "\tDefining variables on the command line will skip the interactive "
+    printf "elements within this script"
+    printf "\n\n"
+    printf "\t\$1 ISIS_LABEL - Different ISIS labels as defined by the "
+    printf "anaconda labels at https://anaconda.org/usgs-astrogeology/isis"
+    printf ", examples include \"LTS\", \"dev\", and \"RC\"\n"
+    printf "\t\$2 ISIS_VERSION - Different ISIS versions as defined by the "
+    printf "anaconda versions for a label at https://anaconda.org/usgs-astrogeology/isis"
+    printf ", examples include 8.0.3 (LTS/Feature), 8.2.0_RC1 (RC), and 2025.02.22 (dev)"
+    exit 1
+}
+
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -h|--help)
+      print_help
+      ;;
+    -n|--env_name)
+      ENV_NAME="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -m|--miniforge_dir)
+      MINIFORGE_DIR="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    -p|--data_prefix)
+      ISISDATA_PREFIX="$2"
+      shift # past argument
+      shift # past value
+      ;;
+    --no_data)
+      DOWNLOAD_DATA=NO
+      shift # past argument
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+# If a ISIS LABEL was given, set it
+if [ -n "$1" ]; then
+    ISIS_LABEL=$1
+else
+    printf "Defaulting to $ISIS_LABEL"
+fi
+
+if [ "$ISIS_LABEL" = "main" ]; then
+    PACKAGE_NAME="usgs-astrogeology::isis"
+else
+    PACKAGE_NAME="usgs-astrogeology/label/$ISIS_LABEL::isis"
+fi
+
+# If a ISIS VERSION was given, set it
+if [ -n "$2" ]; then
+    ISIS_VERSION=$2
+fi
+
+printf "\nBeginning install of $PACKAGE_NAME\n\n"
+
+# Determine the OS type
+case "$(uname)" in
+    "Linux")
+        MINIFORGE_INSTALLER="Miniforge3-Linux-x86_64.sh"
+        LIBGL_INSTALL=""
+        ;;
+    "Darwin")
+        MINIFORGE_INSTALLER="Miniforge3-MacOSX-x86_64.sh"
+        LIBGL_INSTALL=""
+        export CONDA_SUBDIR=osx-64
+        ;;
+    *)
+        echo "Unsupported OS: $(uname)"
+        exit 1
+        ;;
+esac
+
+# Install Miniforge if it's not already installed
+if ! command -v conda &> /dev/null
+then
+    echo "Miniforge not found, installing Miniforge..."
+
+    # If a MINIFORGE_DIR is not set, ask the user
+    if [ -z "$MINIFORGE_DIR" ]; then
+        MINIFORGE_DIR="$HOME/miniforge3"
+
+        printf "Miniforge will be installed at this location:\n\n" 
+        printf "\t$MINIFORGE_DIR/\n\n"
+        printf "\\n"
+        printf "  - Press ENTER to confirm the Miniforge install location\\n"
+        printf "  - Press CTRL-C to abort the installation\\n"
+        printf "  - Or specify a different location below\\n"
+        printf "\\n"
+        printf "[%s] >>> " "$MINIFORGE_DIR"
+
+        read -r miniforge_install_path
+
+        # If input was given, set it
+        if [ -n "$miniforge_install_path" ]; then
+            MINIFORGE_DIR=$miniforge_install_path
+        fi
+    fi
+
+    curl -kL "https://github.com/conda-forge/miniforge/releases/latest/download/$MINIFORGE_INSTALLER" -o Miniforge3.sh || failed_command "Miniforge download"
+    bash Miniforge3.sh -b -p $MINIFORGE_DIR || failed_command "Miniforge installation"
+    export PATH="$MINIFORGE_DIR/bin:$PATH"
+    mamba init || exit 1
+else
+    echo "Miniforge is already installed."
+    if [[ "$CONDA_PREFIX" == *"envs"* ]]; then
+        MINIFORGE_DIR="${CONDA_PREFIX%/*/*}"
+    else
+        MINIFORGE_DIR=$CONDA_PREFIX
+    fi
+    echo "Setting MINIFORGE_DIR to $MINIFORGE_DIR"
+fi
+
+# If an ENV_NAME was not set, ask the user for it
+if [ -z "$ENV_NAME" ]; then
+    ENV_NAME="isis"
+    printf "ISIS will be installed at this location:\n\n" 
+    printf "\t$MINIFORGE_DIR/envs/$ENV_NAME\n\n"
+    printf "\\n"
+    printf "  - Press ENTER to confirm the ISIS install environment name\\n"
+    printf "  - Press CTRL-C to abort the installation\\n"
+    printf "  - Or specify a different environemnt name below\\n"
+    printf "\\n"
+    printf "[%s] >>> " "$ENV_NAME"
+
+    read -r isis_env_name
+
+    # If a name was given, set it
+    if [ -n "$isis_env_name" ]; then
+        ENV_NAME=$isis_env_name
+    fi
+fi
+
+# Check if the environment already exists 
+if conda env list | grep -qE "^$ENV_NAME[ ]."; then 
+    printf "\nEnvironment \"$ENV_NAME\" already exists. Not performing any updates.\n" 
+    printf "To delete the old environment, use the following commands:\n\n" 
+    printf "\t$ conda deactivate\n" 
+    printf "\t$ conda remove -n $ENV_NAME --all\n\n" 
+else
+    conda config --set ssl_verify false 
+
+    # Create a new environment with the specified package
+    echo "Creating a new environment: $ENV_NAME and installing $PACKAGE_NAME"
+    mamba create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
+        echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
+        echo "Seaching for $PACKAGE_NAME versions ..."
+        mamba search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
+        exit 1
+    }
+    echo "Environment \"$ENV_NAME\" created and $PACKAGE_NAME installed."
+fi
+
+# If a ISISDATA_PREFIX was not set, ask the user for it
+if [ -z "$ISISDATA_PREFIX" ]; then
+    ISISDATA_PREFIX="$HOME/.Isis/isis_data"
+    printf "ISISDATA directory is needed for most applications and is several Gbs in size. \n"
+    printf "By default, ISISDATA will be installed at this location:\n\n"
+    printf "\t$ISISDATA_PREFIX\n"
+    printf "\\n"
+    printf "  - Press ENTER to confirm the ISISDATA location\\n"
+    printf "  - Press CTRL-C to abort the installation\\n"
+    printf "  - Or specify a different location below\\n"
+    printf "\\n"
+    printf "[%s] >>> " "$ISISDATA_PREFIX"
+
+    read -r isis_data_path
+
+    # If no input, use default path
+    if [ -n "$isis_data_path" ]; then
+        ISISDATA_PREFIX=$isis_data_path
+    fi
+
+    echo "Setting ISISDATA to $ISISDATA_PREFIX"
+fi
+
+# Verify if the folder exists
+if ! [ -d "$ISISDATA_PREFIX" ]; then
+    if [ "$DOWNLOAD_DATA" = "YES" ]; then
+        echo "Creating folder $ISISDATA_PREFIX"
+        mkdir -p $ISISDATA_PREFIX || failed_command "Creating $ISISDATA_PREFIX"
+    else
+        echo "Not creating directory $ISISDATA_PREFIX since the --no_data flag was set"
+    fi
+fi
+
+conda env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Conda config var set"
+
+if [[ "$MINIFORGE_DIR" == *"envs/$ENV_NAME"* ]]; then
+    ENV_PATH="$MINIFORGE_DIR"
+else
+    ENV_PATH="$MINIFORGE_DIR/envs/$ENV_NAME"
+fi
+
+DOWNLOAD_ISIS_DATA_SCRIPT="$ENV_PATH/bin/downloadIsisData"
+if [[ ! -f "$ENV_PATH/bin/downloadIsisData" && ! -f "$ENV_PATH/etc/isis/rclone.conf" ]]; then
+    if ! [ -f "$DOWNLOAD_ISIS_DATA_SCRIPT" ]; then
+        printf "\nInstalled download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
+        curl  --output "$ENV_PATH/bin/downloadIsisData" -LJO --insecure https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/scripts/downloadIsisData
+        chmod +x "$ENV_PATH/bin/downloadIsisData"
+    fi
+    if ! [ -f "$ENV_PATH/etc/isis/rclone.conf" ]; then
+        printf "\nInstalled isis rclone config: $ENV_PATH/etc/isis/rclone.conf\n"
+        # Verify if the folder exists
+        if ! [ -d "$ENV_PATH/etc/isis/" ]; then
+            echo "Creating folder $ISISDATA_PREFIX"
+            mkdir -p $ENV_PATH/etc/isis/ || failed_command "Creating $ENV_PATH/etc/isis/"
+        fi
+        curl --output "$ENV_PATH/etc/isis/rclone.conf" -LJO --insecure https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/config/rclone.conf
+    fi
+else
+    printf "\nFound download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
+fi
+
+if [ "$DOWNLOAD_DATA" = "NO" ]; then
+    exit 1
+fi
+
+printf "\n\n"
+echo "ISISDATA is required for most applications."
+echo "This will download several gigabytes of data and may take a few hours."
+echo "ISISDATA path is currently set to $ISISDATA_PREFIX"
+echo "You can do this later, read more at:" 
+printf "\n\thttps://astrogeology.usgs.gov/docs/how-to-guides/environment-setup-and-maintenance/isis-data-area/\n\n"
+echo "Do you want to install base ISISDATA now? This can be done later. [yes|no]"
+ans="no"
+printf "[%s] >>> " "$ans"
+
+read -r ans
+
+# If no input, use default path
+if [ "$ans" = "" ]; then
+    ans="no"
+fi
+
+ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
+while [ "$ans" != "YES" ] && [ "$ans" != "NO" ]
+do
+    echo "Please answer 'yes' or 'no':"
+    printf ">>> "
+    read -r ans
+    ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
+done
+
+if [ "$ans" == "YES" ]; then
+    export PATH="$MINIFORGE_DIR/envs/$ENV_NAME/bin/:$PATH"
+    echo "[Running] downloadIsisData base $ISISDATA_PREFIX"
+    $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 base $ISISDATA_PREFIX || failed_command "ISISDATA base download"
+fi 
+
+if [ "$ans" == "NO" ]; then
+    printf "\n"
+    printf "You can download base ISISDATA later with\n" 
+    printf "\tdownloadIsisData base \$ISISDATA"
+fi
+
+## Consider offering user the option to install mission spefific data areas at this point:
+printf "\n\n"
+printf "Do you want to install mission-specific ISISDATA now? This can be done later. [yes|no]\n"
+ans="no"
+printf "[%s] >>> " "$ans"
+
+read -r ans
+
+# If no input, use default path
+if [ "$ans" = "" ]; then
+    ans="no"
+fi
+
+ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
+while [ "$ans" != "YES" ] && [ "$ans" != "NO" ]
+do
+    printf "Please answer 'yes' or 'no':"
+    printf ">>> "
+    read -r ans
+    ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
+done
+
+if [ "$ans" == "YES" ] ; then
+    printf "Enter 1 or more mission names, separated by spaces and then press ENTER\n"
+    printf "Available missions are\\n"
+    printf "\tapollo15   apollo16      apollo17
+\tcassini    chandrayaan1  clementine1
+\tdawn       tgo           galileo
+\thayabusa2  juno          kaguya
+\tlo         lro           mer
+\tmariner10  messenger     mex
+\tmgs        mro           msl
+\todyssey    near          newhorizons
+\tosirisrex  rolo          rosetta
+\tsmart1     viking1       viking2\n"
+    printf ">>> "
+    read -r missions
+    missions=$(echo "${missions}" | tr '[:upper:]' '[:lower:]')
+    # Convert to array and loop over missions to download
+    # No validation, let mistyped missions fail naturally
+    IFS=' ' read -a mission_arr <<< "$missions"
+    for i in ${mission_arr[@]} ; do
+        echo "[Running] downloadIsisData ${i} $ISISDATA_PREFIX"
+        $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
+    done
+fi
+
+if [ "$ans" == "NO" ]; then
+    printf "\n"
+    printf "You can download mission specific ISISDATA later with\n" 
+    printf "\tdownloadIsisData [mission_name] \$ISISDATA"
+fi
+
+printf "\n\n"
+printf "Start using ISIS by restarting your shell\nand activating the new environment with:\n\n"
+printf "\t$ conda activate $ENV_NAME\n\n"
+
