@@ -242,8 +242,6 @@ if mamba env list | grep -qE "^$ENV_NAME[ ]."; then
     printf "\t$ mamba deactivate\n" 
     printf "\t$ mamba remove -n $ENV_NAME --all\n\n" 
 else
-    mamba config --set ssl_verify false 
-
     # Create a new environment with the specified package
     echo "Creating a new environment: $ENV_NAME and installing $PACKAGE_NAME"
     mamba create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
@@ -300,7 +298,7 @@ DOWNLOAD_ISIS_DATA_SCRIPT="$ENV_PATH/bin/downloadIsisData"
 if [[ ! -f "$ENV_PATH/bin/downloadIsisData" && ! -f "$ENV_PATH/etc/isis/rclone.conf" ]]; then
     if ! [ -f "$DOWNLOAD_ISIS_DATA_SCRIPT" ]; then
         printf "\nInstalled download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
-        curl  --output "$ENV_PATH/bin/downloadIsisData" -LJO --insecure https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/scripts/downloadIsisData
+        curl  --output "$ENV_PATH/bin/downloadIsisData" -LJO https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/scripts/downloadIsisData
         chmod +x "$ENV_PATH/bin/downloadIsisData"
     fi
     if ! [ -f "$ENV_PATH/etc/isis/rclone.conf" ]; then
@@ -310,7 +308,7 @@ if [[ ! -f "$ENV_PATH/bin/downloadIsisData" && ! -f "$ENV_PATH/etc/isis/rclone.c
             echo "Creating folder $ISISDATA_PREFIX"
             mkdir -p $ENV_PATH/etc/isis/ || failed_command "Creating $ENV_PATH/etc/isis/"
         fi
-        curl --output "$ENV_PATH/etc/isis/rclone.conf" -LJO --insecure https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/config/rclone.conf
+        curl --output "$ENV_PATH/etc/isis/rclone.conf" -LJO https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/config/rclone.conf
     fi
 else
     printf "\nFound download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
