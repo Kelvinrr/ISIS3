@@ -14,7 +14,7 @@ failed_command() {
 
 # Check that the argument does not start with "-"
 check_valid_arg() {
-    if [[ "$2" = "-*" ]]; then
+    if [[ "$2" = "-"* ]]; then
         echo "Invalid argument: $2"
         echo "Found after $1"
         exit 1
@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
             shift # past argument
             shift # past value
             ;;
-        -n|--env_name)
+        -c|--env_name)
             check_valid_arg $1 $2
             ENV_NAME="$2"
             shift # past argument
