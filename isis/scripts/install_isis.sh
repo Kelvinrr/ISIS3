@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Define environment name and package to install
-ISIS_LABEL="main"
 DOWNLOAD_DATA="YES"
 
 # Report error and reserves error code from a failed command
@@ -13,10 +12,25 @@ failed_command() {
     fi
 }
 
+# Check that the argument does not start with "-"
+check_valid_arg() {
+    if [[ "$2" = "-*" ]]; then
+        echo "Invalid argument: $2"
+        echo "Found after $1"
+        exit 1
+    fi
+}
+
 print_help() {
     printf "Usage: $0 [options] ISIS_LABEL ISIS_VERSION\n"
     printf "Options:\n"
     printf "\t-h, --help            Show this help message and exit\n"
+    printf "\t-l, --isis_label      Different ISIS labels as defined by the anaconda labels "
+    printf " at https://anaconda.org/usgs-astrogeology/isis, examples include \"LTS\", \"dev\", "
+    printf "and \"RC\"\n"
+    printf "\t-v, --isis_version    Different ISIS versions as defined by the anaconda versions "
+    printf "for a label at https://anaconda.org/usgs-astrogeology/isis, examples include 8.0.3 "
+    printf "(LTS/Feature), 8.2.0_RC1 (RC), and 2025.02.22 (dev)\n "
     printf "\t-n, --env_name        The name of the anaconda environment to create.\n"
     printf "\t-m, --miniforge_dir   Define the directory to an anaconda package manager install location. "
     printf "If you have an anaconda package manager already this argument will be ignored. If not "
@@ -28,60 +42,88 @@ print_help() {
     printf "\tDefining variables on the command line will skip the interactive "
     printf "elements within this script"
     printf "\n\n"
-    printf "\t\$1 ISIS_LABEL - Different ISIS labels as defined by the "
-    printf "anaconda labels at https://anaconda.org/usgs-astrogeology/isis"
-    printf ", examples include \"LTS\", \"dev\", and \"RC\"\n"
-    printf "\t\$2 ISIS_VERSION - Different ISIS versions as defined by the "
-    printf "anaconda versions for a label at https://anaconda.org/usgs-astrogeology/isis"
-    printf ", examples include 8.0.3 (LTS/Feature), 8.2.0_RC1 (RC), and 2025.02.22 (dev)"
-    exit 1
 }
+
+for arg in "$@"; do
+    case $arg in
+        -h|--help)
+            print_help
+            exit 0
+            ;;
+    esac
+done
 
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help)
-      print_help
-      ;;
-    -n|--env_name)
-      ENV_NAME="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -m|--miniforge_dir)
-      MINIFORGE_DIR="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -p|--data_prefix)
-      ISISDATA_PREFIX="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    --no_data)
-      DOWNLOAD_DATA=NO
-      shift # past argument
-      ;;
-    -*|--*)
-      echo "Unknown option $1"
-      exit 1
-      ;;
-    *)
-      POSITIONAL_ARGS+=("$1") # save positional arg
-      shift # past argument
-      ;;
-  esac
+    case $1 in
+        -l|--isis_label)
+            check_valid_arg $1 $2
+            ISIS_LABEL="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -v|--isis_version)
+            check_valid_arg $1 $2
+            ISIS_VERSION="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -n|--env_name)
+            check_valid_arg $1 $2
+            ENV_NAME="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -m|--miniforge_dir)
+            check_valid_arg $1 $2
+            MINIFORGE_DIR="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -p|--data_prefix)
+            check_valid_arg $1 $2
+            ISISDATA_PREFIX="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        --no_data)
+            DOWNLOAD_DATA=NO
+            shift # past argument
+            ;;
+        -*|--*)
+            echo "Unknown option $1"
+            exit 1
+            ;;
+        *)
+            POSITIONAL_ARGS+=("$1") # save positional arg
+            shift # past argument
+            ;;
+    esac
 done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-# If a ISIS LABEL was given, set it
-if [ -n "$1" ]; then
-    ISIS_LABEL=$1
-else
-    printf "Defaulting to $ISIS_LABEL"
+# If an ISIS_LABEL was not set, ask the user for it
+if [[ -z $ISIS_LABEL ]]; then
+    ISIS_LABEL="main"
+    printf "ISIS label [$ISIS_LABEL] will be installed.\n"
+    printf "\\n"
+    printf "  - Press ENTER to confirm the ISIS label to install\\n"
+    printf "  - Press CTRL-C to abort the installation\\n"
+    printf "  - Or specify a different ISIS label below\\n"
+    printf "\\n"
+    printf "[%s] >>> " "$ISIS_LABEL"
+
+    read -r isis_label
+
+    # If a label was given, set it
+    if [ -n "$isis_label" ]; then
+        ISIS_LABEL=$isis_label
+    fi
 fi
+
+printf "\nISIS label set to $ISIS_LABEL\n"
 
 if [ "$ISIS_LABEL" = "main" ]; then
     PACKAGE_NAME="usgs-astrogeology::isis"
@@ -89,9 +131,29 @@ else
     PACKAGE_NAME="usgs-astrogeology/label/$ISIS_LABEL::isis"
 fi
 
-# If a ISIS VERSION was given, set it
-if [ -n "$2" ]; then
-    ISIS_VERSION=$2
+# If an ISIS_LABEL was not set, ask the user for it
+if [[ -z $ISIS_VERSION ]]; then
+    ISIS_VERSION=""
+    printf "Specify an ISIS version to install from the ISIS label [$ISIS_LABEL]\n"
+    printf "\\n"
+    printf "  - Press ENTER to install the latest version of ISIS found under [$ISIS_LABEL]\\n"
+    printf "  - Press CTRL-C to abort the installation\\n"
+    printf "  - Or specify an ISIS version below\\n"
+    printf "\\n"
+    printf ">>> " "$ISIS_VERSION"
+
+    read -r isis_version
+
+    # If a label was given, set it
+    if [ -n "$isis_version" ]; then
+        ISIS_VERSION=$isis_version
+    fi
+    printf "\nISIS version set to $ISIS_VERSION\n"
+else
+    printf "\nISIS version set to $ISIS_VERSION\n"
+    if [ $ISIS_VERSION = "latest" ]; then
+        ISIS_VERSION=""
+    fi
 fi
 
 printf "\nBeginning install of $PACKAGE_NAME\n\n"
@@ -114,7 +176,7 @@ case "$(uname)" in
 esac
 
 # Install Miniforge if it's not already installed
-if ! command -v conda &> /dev/null
+if ! command -v mamba &> /dev/null
 then
     echo "Miniforge not found, installing Miniforge..."
 
@@ -174,13 +236,13 @@ if [ -z "$ENV_NAME" ]; then
 fi
 
 # Check if the environment already exists 
-if conda env list | grep -qE "^$ENV_NAME[ ]."; then 
+if mamba env list | grep -qE "^$ENV_NAME[ ]."; then 
     printf "\nEnvironment \"$ENV_NAME\" already exists. Not performing any updates.\n" 
     printf "To delete the old environment, use the following commands:\n\n" 
-    printf "\t$ conda deactivate\n" 
-    printf "\t$ conda remove -n $ENV_NAME --all\n\n" 
+    printf "\t$ mamba deactivate\n" 
+    printf "\t$ mamba remove -n $ENV_NAME --all\n\n" 
 else
-    conda config --set ssl_verify false 
+    mamba config --set ssl_verify false 
 
     # Create a new environment with the specified package
     echo "Creating a new environment: $ENV_NAME and installing $PACKAGE_NAME"
@@ -210,14 +272,14 @@ if [ -z "$ISISDATA_PREFIX" ]; then
 
     # If no input, use default path
     if [ -n "$isis_data_path" ]; then
-        ISISDATA_PREFIX=$isis_data_path
+        ISISDATA_PREFIX=$(eval printf "%s" $isis_data_path)
     fi
 
     echo "Setting ISISDATA to $ISISDATA_PREFIX"
 fi
 
 # Verify if the folder exists
-if ! [ -d "$ISISDATA_PREFIX" ]; then
+if [ ! -d "$ISISDATA_PREFIX" ]; then
     if [ "$DOWNLOAD_DATA" = "YES" ]; then
         echo "Creating folder $ISISDATA_PREFIX"
         mkdir -p $ISISDATA_PREFIX || failed_command "Creating $ISISDATA_PREFIX"
@@ -226,7 +288,7 @@ if ! [ -d "$ISISDATA_PREFIX" ]; then
     fi
 fi
 
-conda env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Conda config var set"
+mamba env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Mamba config var set"
 
 if [[ "$MINIFORGE_DIR" == *"envs/$ENV_NAME"* ]]; then
     ENV_PATH="$MINIFORGE_DIR"
@@ -255,7 +317,7 @@ else
 fi
 
 if [ "$DOWNLOAD_DATA" = "NO" ]; then
-    exit 1
+    exit 0
 fi
 
 printf "\n\n"
