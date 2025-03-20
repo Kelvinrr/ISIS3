@@ -22,10 +22,10 @@ check_valid_arg() {
 }
 
 print_help() {
-    printf "Usage: $0 [options] ISIS_LABEL ISIS_VERSION\n"
+    printf "Usage: $0 [options]\n"
     printf "Options:\n"
     printf "\t-h, --help            Show this help message and exit\n"
-    printf "\t-l, --isis_label      Different ISIS labels as defined by the anaconda labels "
+    printf "\t-l, --anaconda_label      Different ISIS labels as defined by the anaconda labels "
     printf " at https://anaconda.org/usgs-astrogeology/isis, examples include \"LTS\", \"dev\", "
     printf "and \"RC\"\n"
     printf "\t-v, --isis_version    Different ISIS versions as defined by the anaconda versions "
@@ -57,9 +57,9 @@ POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -l|--isis_label)
+        -l|--anaconda_label)
             check_valid_arg $1 $2
-            ISIS_LABEL="$2"
+            ANACONDA_LABEL="$2"
             shift # past argument
             shift # past value
             ;;
@@ -104,39 +104,39 @@ done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-# If an ISIS_LABEL was not set, ask the user for it
-if [[ -z $ISIS_LABEL ]]; then
-    ISIS_LABEL="main"
-    printf "ISIS label [$ISIS_LABEL] will be installed.\n"
+# If an ANACONDA_LABEL was not set, ask the user for it
+if [[ -z $ANACONDA_LABEL ]]; then
+    ANACONDA_LABEL="main"
+    printf "ISIS anaconda label [$ANACONDA_LABEL] will be installed.\n"
     printf "\\n"
     printf "  - Press ENTER to confirm the ISIS label to install\\n"
     printf "  - Press CTRL-C to abort the installation\\n"
     printf "  - Or specify a different ISIS label below\\n"
     printf "\\n"
-    printf "[%s] >>> " "$ISIS_LABEL"
+    printf "[%s] >>> " "$ANACONDA_LABEL"
 
-    read -r isis_label
+    read -r anaconda_label
 
     # If a label was given, set it
-    if [ -n "$isis_label" ]; then
-        ISIS_LABEL=$isis_label
+    if [ -n "$anaconda_label" ]; then
+        ANACONDA_LABEL=$anaconda_label
     fi
 fi
 
-printf "\nISIS label set to $ISIS_LABEL\n"
+printf "\nISIS anaconda label set to [$ANACONDA_LABEL]\n"
 
-if [ "$ISIS_LABEL" = "main" ]; then
+if [ "$ANACONDA_LABEL" = "main" ]; then
     PACKAGE_NAME="usgs-astrogeology::isis"
 else
-    PACKAGE_NAME="usgs-astrogeology/label/$ISIS_LABEL::isis"
+    PACKAGE_NAME="usgs-astrogeology/label/$ANACONDA_LABEL::isis"
 fi
 
-# If an ISIS_LABEL was not set, ask the user for it
+# If an ISIS_VERSION was not set, ask the user for it
 if [[ -z $ISIS_VERSION ]]; then
-    ISIS_VERSION=""
-    printf "Specify an ISIS version to install from the ISIS label [$ISIS_LABEL]\n"
+    ISIS_VERSION="latest"
+    printf "Specify an ISIS version to install from the ISIS anaconda label [$ANACONDA_LABEL]\n"
     printf "\\n"
-    printf "  - Press ENTER to install the latest version of ISIS found under [$ISIS_LABEL]\\n"
+    printf "  - Press ENTER to install the latest version of ISIS found under [$ANACONDA_LABEL]\\n"
     printf "  - Press CTRL-C to abort the installation\\n"
     printf "  - Or specify an ISIS version below\\n"
     printf "\\n"
@@ -148,12 +148,13 @@ if [[ -z $ISIS_VERSION ]]; then
     if [ -n "$isis_version" ]; then
         ISIS_VERSION=$isis_version
     fi
-    printf "\nISIS version set to $ISIS_VERSION\n"
+    printf "\nISIS version set to [$ISIS_VERSION]\n"
 else
-    printf "\nISIS version set to $ISIS_VERSION\n"
-    if [ $ISIS_VERSION = "latest" ]; then
-        ISIS_VERSION=""
-    fi
+    printf "\nISIS version set to [$ISIS_VERSION]\n"
+fi
+
+if [ $ISIS_VERSION = "latest" ]; then
+    ISIS_VERSION=""
 fi
 
 printf "\nBeginning install of $PACKAGE_NAME\n\n"
