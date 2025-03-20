@@ -244,7 +244,7 @@ if mamba env list | grep -qE "^$ENV_NAME[ ]."; then
     printf "\t$ mamba remove -n $ENV_NAME --all\n\n" 
 else
     # Create a new environment with the specified package
-    echo "Creating a new environment: $ENV_NAME and installing $PACKAGE_NAME"
+    echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
     mamba create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
         echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
         echo "Seaching for $PACKAGE_NAME versions ..."
@@ -299,7 +299,7 @@ DOWNLOAD_ISIS_DATA_SCRIPT="$ENV_PATH/bin/downloadIsisData"
 if [[ ! -f "$ENV_PATH/bin/downloadIsisData" && ! -f "$ENV_PATH/etc/isis/rclone.conf" ]]; then
     if ! [ -f "$DOWNLOAD_ISIS_DATA_SCRIPT" ]; then
         printf "\nInstalled download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
-        curl  --output "$ENV_PATH/bin/downloadIsisData" -LJO https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/scripts/downloadIsisData
+        curl  --output "$ENV_PATH/bin/downloadIsisData" -LJO https://github.com/DOI-USGS/ISIS3/raw/dev/isis/scripts/downloadIsisData
         chmod +x "$ENV_PATH/bin/downloadIsisData"
     fi
     if ! [ -f "$ENV_PATH/etc/isis/rclone.conf" ]; then
@@ -309,7 +309,7 @@ if [[ ! -f "$ENV_PATH/bin/downloadIsisData" && ! -f "$ENV_PATH/etc/isis/rclone.c
             echo "Creating folder $ISISDATA_PREFIX"
             mkdir -p $ENV_PATH/etc/isis/ || failed_command "Creating $ENV_PATH/etc/isis/"
         fi
-        curl --output "$ENV_PATH/etc/isis/rclone.conf" -LJO https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/config/rclone.conf
+        curl --output "$ENV_PATH/etc/isis/rclone.conf" -LJO https://github.com/DOI-USGS/ISIS3/raw/dev/isis/config/rclone.conf
     fi
 else
     printf "\nFound download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
@@ -354,57 +354,56 @@ fi
 if [ "$ans" == "NO" ]; then
     printf "\n"
     printf "You can download base ISISDATA later with\n" 
-    printf "\tdownloadIsisData base \$ISISDATA"
+    printf "\tdownloadIsisData base \$ISISDATA\n"
 fi
 
-## Consider offering user the option to install mission spefific data areas at this point:
-printf "\n\n"
-printf "Do you want to install mission-specific ISISDATA now? This can be done later. [yes|no]\n"
-ans="no"
-printf "[%s] >>> " "$ans"
-
-read -r ans
-
-# If no input, use default path
-if [ "$ans" = "" ]; then
+if [ "$ans" == "YES" ]; then
+    printf "\n"
+    printf "Do you want to install mission-specific ISISDATA now? This can be done later. [yes|no]\n"
     ans="no"
-fi
+    printf "[%s] >>> " "$ans"
 
-ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
-while [ "$ans" != "YES" ] && [ "$ans" != "NO" ]
-do
-    printf "Please answer 'yes' or 'no':"
-    printf ">>> "
     read -r ans
+
+    # If no input, use default path
+    if [ "$ans" = "" ]; then
+        ans="no"
+    fi
+
     ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
-done
-
-if [ "$ans" == "YES" ] ; then
-    printf "Enter 1 or more mission names, separated by spaces and then press ENTER\n"
-    printf "Available missions are\\n"
-    printf "\tapollo15   apollo16      apollo17
-\tcassini    chandrayaan1  clementine1
-\tdawn       tgo           galileo
-\thayabusa2  juno          kaguya
-\tlo         lro           mer
-\tmariner10  messenger     mex
-\tmgs        mro           msl
-\todyssey    near          newhorizons
-\tosirisrex  rolo          rosetta
-\tsmart1     viking1       viking2\n"
-    printf ">>> "
-    read -r missions
-    missions=$(echo "${missions}" | tr '[:upper:]' '[:lower:]')
-    # Convert to array and loop over missions to download
-    # No validation, let mistyped missions fail naturally
-    IFS=' ' read -a mission_arr <<< "$missions"
-    for i in ${mission_arr[@]} ; do
-        echo "[Running] downloadIsisData ${i} $ISISDATA_PREFIX"
-        $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
+    while [ "$ans" != "YES" ] && [ "$ans" != "NO" ]
+    do
+        printf "Please answer 'yes' or 'no':"
+        printf ">>> "
+        read -r ans
+        ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
     done
-fi
 
-if [ "$ans" == "NO" ]; then
+    if [ "$ans" == "YES" ] ; then
+        printf "Enter 1 or more mission names, separated by spaces and then press ENTER\n"
+        printf "Available missions are\\n"
+        printf "\tapollo15   apollo16      apollo17
+    \tcassini    chandrayaan1  clementine1
+    \tdawn       tgo           galileo
+    \thayabusa2  juno          kaguya
+    \tlo         lro           mer
+    \tmariner10  messenger     mex
+    \tmgs        mro           msl
+    \todyssey    near          newhorizons
+    \tosirisrex  rolo          rosetta
+    \tsmart1     viking1       viking2\n"
+        printf ">>> "
+        read -r missions
+        missions=$(echo "${missions}" | tr '[:upper:]' '[:lower:]')
+        # Convert to array and loop over missions to download
+        # No validation, let mistyped missions fail naturally
+        IFS=' ' read -a mission_arr <<< "$missions"
+        for i in ${mission_arr[@]} ; do
+            echo "[Running] downloadIsisData ${i} $ISISDATA_PREFIX"
+            $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
+        done
+    fi
+else
     printf "\n"
     printf "You can download mission specific ISISDATA later with\n" 
     printf "\tdownloadIsisData [mission_name] \$ISISDATA"
