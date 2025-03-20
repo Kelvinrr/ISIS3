@@ -12,11 +12,16 @@ failed_command() {
     fi
 }
 
-# Check that the argument does not start with "-"
+# Apply check for optional arguments that expect a value
 check_valid_arg() {
     if [[ "$2" = "-"* ]]; then
         echo "Invalid argument: $2"
         echo "Found after $1"
+        exit 1
+    fi
+
+    if [[ -z $2 ]]; then
+        echo "No value for $1 provided"
         exit 1
     fi
 }
