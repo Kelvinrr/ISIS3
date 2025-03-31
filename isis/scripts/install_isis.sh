@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # Define environment name and package to install
-ISIS_LABEL="main"
 DOWNLOAD_DATA="YES"
 
 # Report error and reserves error code from a failed command
@@ -13,10 +12,30 @@ failed_command() {
     fi
 }
 
+# Apply check for optional arguments that expect a value
+check_valid_arg() {
+    if [[ "$2" = "-"* ]]; then
+        echo "Invalid argument: $2"
+        echo "Found after $1"
+        exit 1
+    fi
+
+    if [[ -z $2 ]]; then
+        echo "No value for $1 provided"
+        exit 1
+    fi
+}
+
 print_help() {
-    printf "Usage: $0 [options] ISIS_LABEL ISIS_VERSION\n"
+    printf "Usage: $0 [options]\n"
     printf "Options:\n"
     printf "\t-h, --help            Show this help message and exit\n"
+    printf "\t-l, --anaconda_label      Different ISIS labels as defined by the anaconda labels "
+    printf " at https://anaconda.org/usgs-astrogeology/isis, examples include \"LTS\", \"dev\", "
+    printf "and \"RC\"\n"
+    printf "\t-v, --isis_version    Different ISIS versions as defined by the anaconda versions "
+    printf "for a label at https://anaconda.org/usgs-astrogeology/isis, examples include 8.0.3 "
+    printf "(LTS/Feature), 8.2.0_RC1 (RC), and 2025.02.22 (dev)\n "
     printf "\t-n, --env_name        The name of the anaconda environment to create.\n"
     printf "\t-m, --miniforge_dir   Define the directory to an anaconda package manager install location. "
     printf "If you have an anaconda package manager already this argument will be ignored. If not "
@@ -28,70 +47,119 @@ print_help() {
     printf "\tDefining variables on the command line will skip the interactive "
     printf "elements within this script"
     printf "\n\n"
-    printf "\t\$1 ISIS_LABEL - Different ISIS labels as defined by the "
-    printf "anaconda labels at https://anaconda.org/usgs-astrogeology/isis"
-    printf ", examples include \"LTS\", \"dev\", and \"RC\"\n"
-    printf "\t\$2 ISIS_VERSION - Different ISIS versions as defined by the "
-    printf "anaconda versions for a label at https://anaconda.org/usgs-astrogeology/isis"
-    printf ", examples include 8.0.3 (LTS/Feature), 8.2.0_RC1 (RC), and 2025.02.22 (dev)"
-    exit 1
 }
+
+for arg in "$@"; do
+    case $arg in
+        -h|--help)
+            print_help
+            exit 0
+            ;;
+    esac
+done
 
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
-  case $1 in
-    -h|--help)
-      print_help
-      ;;
-    -n|--env_name)
-      ENV_NAME="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -m|--miniforge_dir)
-      MINIFORGE_DIR="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    -p|--data_prefix)
-      ISISDATA_PREFIX="$2"
-      shift # past argument
-      shift # past value
-      ;;
-    --no_data)
-      DOWNLOAD_DATA=NO
-      shift # past argument
-      ;;
-    -*|--*)
-      echo "Unknown option $1"
-      exit 1
-      ;;
-    *)
-      POSITIONAL_ARGS+=("$1") # save positional arg
-      shift # past argument
-      ;;
-  esac
+    case $1 in
+        -l|--anaconda_label)
+            check_valid_arg $1 $2
+            ANACONDA_LABEL="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -v|--isis_version)
+            check_valid_arg $1 $2
+            ISIS_VERSION="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -c|--env_name)
+            check_valid_arg $1 $2
+            ENV_NAME="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -m|--miniforge_dir)
+            check_valid_arg $1 $2
+            MINIFORGE_DIR="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        -p|--data_prefix)
+            check_valid_arg $1 $2
+            ISISDATA_PREFIX="$2"
+            shift # past argument
+            shift # past value
+            ;;
+        --no_data)
+            DOWNLOAD_DATA=NO
+            shift # past argument
+            ;;
+        -*|--*)
+            echo "Unknown option $1"
+            exit 1
+            ;;
+        *)
+            POSITIONAL_ARGS+=("$1") # save positional arg
+            shift # past argument
+            ;;
+    esac
 done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 
-# If a ISIS LABEL was given, set it
-if [ -n "$1" ]; then
-    ISIS_LABEL=$1
-else
-    printf "Defaulting to $ISIS_LABEL"
+# If an ANACONDA_LABEL was not set, ask the user for it
+if [[ -z $ANACONDA_LABEL ]]; then
+    ANACONDA_LABEL="main"
+    printf "ISIS anaconda label [$ANACONDA_LABEL] will be installed.\n"
+    printf "\\n"
+    printf "  - Press ENTER to confirm the ISIS label to install\\n"
+    printf "  - Press CTRL-C to abort the installation\\n"
+    printf "  - Or specify a different ISIS label below\\n"
+    printf "\\n"
+    printf "[%s] >>> " "$ANACONDA_LABEL"
+
+    read -r anaconda_label
+
+    # If a label was given, set it
+    if [ -n "$anaconda_label" ]; then
+        ANACONDA_LABEL=$anaconda_label
+    fi
 fi
 
-if [ "$ISIS_LABEL" = "main" ]; then
+printf "\nISIS anaconda label set to [$ANACONDA_LABEL]\n"
+
+if [ "$ANACONDA_LABEL" = "main" ]; then
     PACKAGE_NAME="usgs-astrogeology::isis"
 else
-    PACKAGE_NAME="usgs-astrogeology/label/$ISIS_LABEL::isis"
+    PACKAGE_NAME="usgs-astrogeology/label/$ANACONDA_LABEL::isis"
 fi
 
-# If a ISIS VERSION was given, set it
-if [ -n "$2" ]; then
-    ISIS_VERSION=$2
+# If an ISIS_VERSION was not set, ask the user for it
+if [[ -z $ISIS_VERSION ]]; then
+    ISIS_VERSION="latest"
+    printf "Specify an ISIS version to install from the ISIS anaconda label [$ANACONDA_LABEL]\n"
+    printf "\\n"
+    printf "  - Press ENTER to install the latest version of ISIS found under [$ANACONDA_LABEL]\\n"
+    printf "  - Press CTRL-C to abort the installation\\n"
+    printf "  - Or specify an ISIS version below\\n"
+    printf "\\n"
+    printf ">>> " "$ISIS_VERSION"
+
+    read -r isis_version
+
+    # If a label was given, set it
+    if [ -n "$isis_version" ]; then
+        ISIS_VERSION=$isis_version
+    fi
+    printf "\nISIS version set to [$ISIS_VERSION]\n"
+else
+    printf "\nISIS version set to [$ISIS_VERSION]\n"
+fi
+
+if [ $ISIS_VERSION = "latest" ]; then
+    ISIS_VERSION=""
 fi
 
 printf "\nBeginning install of $PACKAGE_NAME\n\n"
@@ -114,7 +182,7 @@ case "$(uname)" in
 esac
 
 # Install Miniforge if it's not already installed
-if ! command -v conda &> /dev/null
+if ! command -v mamba &> /dev/null
 then
     echo "Miniforge not found, installing Miniforge..."
 
@@ -174,16 +242,14 @@ if [ -z "$ENV_NAME" ]; then
 fi
 
 # Check if the environment already exists 
-if conda env list | grep -qE "^$ENV_NAME[ ]."; then 
+if mamba env list | grep -qE "^$ENV_NAME[ ]."; then 
     printf "\nEnvironment \"$ENV_NAME\" already exists. Not performing any updates.\n" 
     printf "To delete the old environment, use the following commands:\n\n" 
-    printf "\t$ conda deactivate\n" 
-    printf "\t$ conda remove -n $ENV_NAME --all\n\n" 
+    printf "\t$ mamba deactivate\n" 
+    printf "\t$ mamba remove -n $ENV_NAME --all\n\n" 
 else
-    conda config --set ssl_verify false 
-
     # Create a new environment with the specified package
-    echo "Creating a new environment: $ENV_NAME and installing $PACKAGE_NAME"
+    echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
     mamba create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
         echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
         echo "Seaching for $PACKAGE_NAME versions ..."
@@ -210,14 +276,14 @@ if [ -z "$ISISDATA_PREFIX" ]; then
 
     # If no input, use default path
     if [ -n "$isis_data_path" ]; then
-        ISISDATA_PREFIX=$isis_data_path
+        ISISDATA_PREFIX=$(eval printf "%s" $isis_data_path)
     fi
 
     echo "Setting ISISDATA to $ISISDATA_PREFIX"
 fi
 
 # Verify if the folder exists
-if ! [ -d "$ISISDATA_PREFIX" ]; then
+if [ ! -d "$ISISDATA_PREFIX" ]; then
     if [ "$DOWNLOAD_DATA" = "YES" ]; then
         echo "Creating folder $ISISDATA_PREFIX"
         mkdir -p $ISISDATA_PREFIX || failed_command "Creating $ISISDATA_PREFIX"
@@ -226,7 +292,7 @@ if ! [ -d "$ISISDATA_PREFIX" ]; then
     fi
 fi
 
-conda env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Conda config var set"
+mamba env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Mamba config var set"
 
 if [[ "$MINIFORGE_DIR" == *"envs/$ENV_NAME"* ]]; then
     ENV_PATH="$MINIFORGE_DIR"
@@ -238,7 +304,7 @@ DOWNLOAD_ISIS_DATA_SCRIPT="$ENV_PATH/bin/downloadIsisData"
 if [[ ! -f "$ENV_PATH/bin/downloadIsisData" && ! -f "$ENV_PATH/etc/isis/rclone.conf" ]]; then
     if ! [ -f "$DOWNLOAD_ISIS_DATA_SCRIPT" ]; then
         printf "\nInstalled download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
-        curl  --output "$ENV_PATH/bin/downloadIsisData" -LJO --insecure https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/scripts/downloadIsisData
+        curl  --output "$ENV_PATH/bin/downloadIsisData" -LJO https://github.com/DOI-USGS/ISIS3/raw/dev/isis/scripts/downloadIsisData
         chmod +x "$ENV_PATH/bin/downloadIsisData"
     fi
     if ! [ -f "$ENV_PATH/etc/isis/rclone.conf" ]; then
@@ -248,14 +314,14 @@ if [[ ! -f "$ENV_PATH/bin/downloadIsisData" && ! -f "$ENV_PATH/etc/isis/rclone.c
             echo "Creating folder $ISISDATA_PREFIX"
             mkdir -p $ENV_PATH/etc/isis/ || failed_command "Creating $ENV_PATH/etc/isis/"
         fi
-        curl --output "$ENV_PATH/etc/isis/rclone.conf" -LJO --insecure https://github.com/USGS-Astrogeology/ISIS3/raw/dev/isis/config/rclone.conf
+        curl --output "$ENV_PATH/etc/isis/rclone.conf" -LJO https://github.com/DOI-USGS/ISIS3/raw/dev/isis/config/rclone.conf
     fi
 else
     printf "\nFound download script: $DOWNLOAD_ISIS_DATA_SCRIPT\n"
 fi
 
 if [ "$DOWNLOAD_DATA" = "NO" ]; then
-    exit 1
+    exit 0
 fi
 
 printf "\n\n"
@@ -293,57 +359,56 @@ fi
 if [ "$ans" == "NO" ]; then
     printf "\n"
     printf "You can download base ISISDATA later with\n" 
-    printf "\tdownloadIsisData base \$ISISDATA"
+    printf "\tdownloadIsisData base \$ISISDATA\n"
 fi
 
-## Consider offering user the option to install mission spefific data areas at this point:
-printf "\n\n"
-printf "Do you want to install mission-specific ISISDATA now? This can be done later. [yes|no]\n"
-ans="no"
-printf "[%s] >>> " "$ans"
-
-read -r ans
-
-# If no input, use default path
-if [ "$ans" = "" ]; then
+if [ "$ans" == "YES" ]; then
+    printf "\n"
+    printf "Do you want to install mission-specific ISISDATA now? This can be done later. [yes|no]\n"
     ans="no"
-fi
+    printf "[%s] >>> " "$ans"
 
-ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
-while [ "$ans" != "YES" ] && [ "$ans" != "NO" ]
-do
-    printf "Please answer 'yes' or 'no':"
-    printf ">>> "
     read -r ans
+
+    # If no input, use default path
+    if [ "$ans" = "" ]; then
+        ans="no"
+    fi
+
     ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
-done
-
-if [ "$ans" == "YES" ] ; then
-    printf "Enter 1 or more mission names, separated by spaces and then press ENTER\n"
-    printf "Available missions are\\n"
-    printf "\tapollo15   apollo16      apollo17
-\tcassini    chandrayaan1  clementine1
-\tdawn       tgo           galileo
-\thayabusa2  juno          kaguya
-\tlo         lro           mer
-\tmariner10  messenger     mex
-\tmgs        mro           msl
-\todyssey    near          newhorizons
-\tosirisrex  rolo          rosetta
-\tsmart1     viking1       viking2\n"
-    printf ">>> "
-    read -r missions
-    missions=$(echo "${missions}" | tr '[:upper:]' '[:lower:]')
-    # Convert to array and loop over missions to download
-    # No validation, let mistyped missions fail naturally
-    IFS=' ' read -a mission_arr <<< "$missions"
-    for i in ${mission_arr[@]} ; do
-        echo "[Running] downloadIsisData ${i} $ISISDATA_PREFIX"
-        $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
+    while [ "$ans" != "YES" ] && [ "$ans" != "NO" ]
+    do
+        printf "Please answer 'yes' or 'no':"
+        printf ">>> "
+        read -r ans
+        ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
     done
-fi
 
-if [ "$ans" == "NO" ]; then
+    if [ "$ans" == "YES" ] ; then
+        printf "Enter 1 or more mission names, separated by spaces and then press ENTER\n"
+        printf "Available missions are\\n"
+        printf "\tapollo15   apollo16      apollo17
+    \tcassini    chandrayaan1  clementine1
+    \tdawn       tgo           galileo
+    \thayabusa2  juno          kaguya
+    \tlo         lro           mer
+    \tmariner10  messenger     mex
+    \tmgs        mro           msl
+    \todyssey    near          newhorizons
+    \tosirisrex  rolo          rosetta
+    \tsmart1     viking1       viking2\n"
+        printf ">>> "
+        read -r missions
+        missions=$(echo "${missions}" | tr '[:upper:]' '[:lower:]')
+        # Convert to array and loop over missions to download
+        # No validation, let mistyped missions fail naturally
+        IFS=' ' read -a mission_arr <<< "$missions"
+        for i in ${mission_arr[@]} ; do
+            echo "[Running] downloadIsisData ${i} $ISISDATA_PREFIX"
+            $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
+        done
+    fi
+else
     printf "\n"
     printf "You can download mission specific ISISDATA later with\n" 
     printf "\tdownloadIsisData [mission_name] \$ISISDATA"
