@@ -2,6 +2,7 @@
 
 # Define environment name and package to install
 DOWNLOAD_DATA="YES"
+CLIENT="mamba"
 
 # Report error and reserves error code from a failed command
 failed_command() {
@@ -116,7 +117,8 @@ if [[ -z $ANACONDA_LABEL ]]; then
     printf "\\n"
     printf "  - Press ENTER to confirm the ISIS label to install\\n"
     printf "  - Press CTRL-C to abort the installation\\n"
-    printf "  - Or specify a different ISIS label below\\n"
+    printf "  - Or specify a different ISIS label below [main, dev, lts, rc]\\n"
+    printf "  - Default is [main]\\n"
     printf "\\n"
     printf "[%s] >>> " "$ANACONDA_LABEL"
 
@@ -126,6 +128,11 @@ if [[ -z $ANACONDA_LABEL ]]; then
     if [ -n "$anaconda_label" ]; then
         ANACONDA_LABEL=$anaconda_label
     fi
+fi
+
+# Force label to uppercase for LTS and RC
+if [ "${ANACONDA_LABEL,,}" = "lts" ] || [ "${ANACONDA_LABEL,,}" = "rc" ]; then
+    ANACONDA_LABEL="${ANACONDA_LABEL^^}"
 fi
 
 printf "\nISIS anaconda label set to [$ANACONDA_LABEL]\n"
@@ -139,21 +146,27 @@ fi
 # If an ISIS_VERSION was not set, ask the user for it
 if [[ -z $ISIS_VERSION ]]; then
     ISIS_VERSION="latest"
-    printf "Specify an ISIS version to install from the ISIS anaconda label [$ANACONDA_LABEL]\n"
-    printf "\\n"
-    printf "  - Press ENTER to install the latest version of ISIS found under [$ANACONDA_LABEL]\\n"
-    printf "  - Press CTRL-C to abort the installation\\n"
-    printf "  - Or specify an ISIS version below\\n"
-    printf "\\n"
-    printf ">>> " "$ISIS_VERSION"
+    # Skip the version prompt if ANACONDA_LABEL is dev
+    if [ "$ANACONDA_LABEL" != "dev" ]; then
+        printf "Specify an ISIS version to install from the ISIS anaconda label [$ANACONDA_LABEL]\n"
+        printf "\\n"
+        printf "  - Press ENTER to install the latest version of ISIS found under [$ANACONDA_LABEL]\\n"
+        printf "  - Press CTRL-C to abort the installation\\n"
+        printf "  - Or specify an ISIS version below\\n"
+        printf "\\n"
+        printf "[%s] >>> " "$ISIS_VERSION"
 
-    read -r isis_version
+        read -r isis_version
 
-    # If a label was given, set it
-    if [ -n "$isis_version" ]; then
-        ISIS_VERSION=$isis_version
+        # If a label was given, set it
+        if [ -n "$isis_version" ]; then
+            ISIS_VERSION=$isis_version
+        fi
+        printf "\nISIS version set to [$ISIS_VERSION]\n"
+    else
+        printf "\nUsing latest version from dev channel\n"
+        ISIS_VERSION="latest"
     fi
-    printf "\nISIS version set to [$ISIS_VERSION]\n"
 else
     printf "\nISIS version set to [$ISIS_VERSION]\n"
 fi
@@ -181,9 +194,41 @@ case "$(uname)" in
         ;;
 esac
 
+# Check if conda is installed but mamba is not
+if command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
+    echo "WARNING: conda is installed but mamba is not."
+    echo "mamba is a faster alternative to conda and is recommended for ISIS installation."
+    echo "Would you like to install mamba? [yes|no]"
+    ans="yes"
+    printf "[%s] >>> " "$ans"
+    
+    read -r ans
+    
+    # If no input, use default
+    if [ "$ans" = "" ]; then
+        ans="yes"
+    fi
+    
+    ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
+    while [ "$ans" != "YES" ] && [ "$ans" != "NO" ]
+    do
+        echo "Please answer 'yes' or 'no':"
+        printf ">>> "
+        read -r ans
+        ans=$(echo "${ans}" | tr '[:lower:]' '[:upper:]')
+    done
+    
+    if [ "$ans" == "NO" ]; then
+        echo "Error: Only mamba is supported. Exiting."
+        exit 1
+    else
+        echo "Will proceed with installing mamba."
+    fi
+fi
+
 # Install Miniforge if it's not already installed
-if ! command -v mamba &> /dev/null
-then
+if ! command -v mamba &> /dev/null; then
+
     echo "Miniforge not found, installing Miniforge..."
 
     # If a MINIFORGE_DIR is not set, ask the user
@@ -207,10 +252,15 @@ then
         fi
     fi
 
-    curl -kL "https://github.com/conda-forge/miniforge/releases/latest/download/$MINIFORGE_INSTALLER" -o Miniforge3.sh || failed_command "Miniforge download"
-    bash Miniforge3.sh -b -p $MINIFORGE_DIR || failed_command "Miniforge installation"
-    export PATH="$MINIFORGE_DIR/bin:$PATH"
-    mamba init || exit 1
+    # Check if MINIFORGE_DIR exists but mamba is not in PATH
+    if [ -d "$MINIFORGE_DIR" ]; then
+        echo "Miniforge directory exists at $MINIFORGE_DIR, reusing existing installation"
+    else
+        curl -kL "https://github.com/conda-forge/miniforge/releases/latest/download/$MINIFORGE_INSTALLER" -o Miniforge3.sh || failed_command "Miniforge download"
+        bash Miniforge3.sh -b -p $MINIFORGE_DIR || failed_command "Miniforge installation"
+    fi
+
+    $MINIFORGE_DIR/bin/$CLIENT init || exit 1
 else
     echo "Miniforge is already installed."
     if [[ "$CONDA_PREFIX" == *"envs"* ]]; then
@@ -242,7 +292,7 @@ if [ -z "$ENV_NAME" ]; then
 fi
 
 # Check if the environment already exists 
-if mamba env list | grep -qE "^$ENV_NAME[ ]."; then 
+if $MINIFORGE_DIR/bin/$CLIENT env list | grep -qE "^$ENV_NAME[ ]."; then 
     printf "\nEnvironment \"$ENV_NAME\" already exists. Not performing any updates.\n" 
     printf "To delete the old environment, use the following commands:\n\n" 
     printf "\t$ mamba deactivate\n" 
@@ -250,10 +300,10 @@ if mamba env list | grep -qE "^$ENV_NAME[ ]."; then
 else
     # Create a new environment with the specified package
     echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
-    mamba create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
+    $MINIFORGE_DIR/bin/$CLIENT create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
         echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
         echo "Seaching for $PACKAGE_NAME versions ..."
-        mamba search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
+        $MINIFORGE_DIR/bin/$CLIENT search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
         exit 1
     }
     echo "Environment \"$ENV_NAME\" created and $PACKAGE_NAME installed."
@@ -292,7 +342,7 @@ if [ ! -d "$ISISDATA_PREFIX" ]; then
     fi
 fi
 
-mamba env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Mamba config var set"
+$MINIFORGE_DIR/bin/$CLIENT env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Mamba config var set"
 
 if [[ "$MINIFORGE_DIR" == *"envs/$ENV_NAME"* ]]; then
     ENV_PATH="$MINIFORGE_DIR"
@@ -351,9 +401,8 @@ do
 done
 
 if [ "$ans" == "YES" ]; then
-    export PATH="$MINIFORGE_DIR/envs/$ENV_NAME/bin/:$PATH"
     echo "[Running] downloadIsisData base $ISISDATA_PREFIX"
-    $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 base $ISISDATA_PREFIX || failed_command "ISISDATA base download"
+    $MINIFORGE_DIR/envs/$ENV_NAME/bin/downloadIsisData -n 20 base $ISISDATA_PREFIX || failed_command "ISISDATA base download"
 fi 
 
 if [ "$ans" == "NO" ]; then
@@ -405,7 +454,7 @@ if [ "$ans" == "YES" ]; then
         IFS=' ' read -a mission_arr <<< "$missions"
         for i in ${mission_arr[@]} ; do
             echo "[Running] downloadIsisData ${i} $ISISDATA_PREFIX"
-            $DOWNLOAD_ISIS_DATA_SCRIPT -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
+            $MINIFORGE_DIR/envs/$ENV_NAME/bin/downloadIsisData -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
         done
     fi
 else
@@ -415,6 +464,9 @@ else
 fi
 
 printf "\n\n"
-printf "Start using ISIS by restarting your shell\nand activating the new environment with:\n\n"
+printf "Activate the new environment with:\n\n"
+if ! command -v mamba &> /dev/null ; then
+    printf "\t$ source ~/.bashrc  # or restart your shell\n"
+fi
 printf "\t$ conda activate $ENV_NAME\n\n"
 
