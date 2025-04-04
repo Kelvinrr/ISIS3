@@ -439,7 +439,6 @@ if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
             printf "\tdownloadIsisData base \$ISISDATA\n"
         fi
     fi
-
     if [ "$ans" == "YES" ]; then
         printf "\n"
         printf "Do you want to install mission-specific ISISDATA now? This can be done later. [yes|no]\n"
@@ -499,3 +498,4 @@ if ! command -v mamba &> /dev/null ; then
     printf "\t$ source ~/.bashrc  # or restart your shell\n"
 fi
 printf "\t$ conda activate $ENV_NAME\n\n"
+
