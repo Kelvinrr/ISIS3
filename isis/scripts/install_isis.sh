@@ -221,7 +221,7 @@ if command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
         echo "WARNING: conda is installed but mamba is not."
         echo "mamba is a faster alternative to conda and is required for ISIS installation."
         echo "Otherwise, environment creation will take much longer than what is practical."
-        ehco "ISIS only supports mamba for installation, you can install it now to move forward."
+        echo "ISIS only supports mamba for installation, you can install it now to move forward."
         echo "Would you like to install mamba? [yes|no]"
         ans="yes"
         printf "[%s] >>> " "$ans"
