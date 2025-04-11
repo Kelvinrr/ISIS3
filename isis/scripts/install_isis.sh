@@ -66,10 +66,6 @@ for arg in "$@"; do
             print_help
             exit 0
             ;;
-        --force-mamba)
-            FORCE_MAMBA_INSTALL="YES"
-            shift
-            ;;
     esac
 done
 
@@ -115,6 +111,10 @@ while [[ $# -gt 0 ]]; do
             DOWNLOAD_DATA=YES
             BASE_DATA_ONLY=YES
             shift # past argument
+            ;;
+        --force-mamba)
+            FORCE_MAMBA_INSTALL="YES"
+            shift
             ;;
         -*|--*)
             echo "Unknown option $1"
@@ -221,6 +221,7 @@ if command -v conda &> /dev/null && ! command -v mamba &> /dev/null; then
         echo "WARNING: conda is installed but mamba is not."
         echo "mamba is a faster alternative to conda and is required for ISIS installation."
         echo "Otherwise, environment creation will take much longer than what is practical."
+        ehco "ISIS only supports mamba for installation, you can install it now to move forward."
         echo "Would you like to install mamba? [yes|no]"
         ans="yes"
         printf "[%s] >>> " "$ans"
