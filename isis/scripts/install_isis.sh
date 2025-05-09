@@ -54,7 +54,7 @@ print_help() {
     printf "\t                      ISIS_DATA area.\n"
     printf "\t--download-base       Download the base data without prompting the user.\n"
     printf "\t--force-mamba         Force installation of mamba regardless of existing conda\n"
-    printf "\t-o, --overwrite       Force overwrite of existing environment if it exists\n"
+    printf "\t--overwrite           Force overwrite of existing environment if it exists\n"
     printf "\n"
     printf "\tDefining variables on the command line will skip the\n"
     printf "\tinteractive elements within this script\n"
@@ -112,7 +112,7 @@ while [[ $# -gt 0 ]]; do
             BASE_DATA_ONLY=YES
             shift # past argument
             ;;
-        --overwrite)
+        -o|--overwrite)
             FORCE_INSTALL=YES
             shift # past argument
             ;;
@@ -467,7 +467,6 @@ if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
             printf "\tdownloadIsisData base \$ISISDATA\n"
         fi
     fi
-    
     if [ "$ans" == "YES" ]; then
         printf "\n"
         printf "Do you want to install mission-specific ISISDATA now? This can be done later. [yes|no]\n"
