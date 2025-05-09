@@ -54,6 +54,7 @@ print_help() {
     printf "\t                      ISIS_DATA area.\n"
     printf "\t--download-base       Download the base data without prompting the user.\n"
     printf "\t--force-mamba         Force installation of mamba regardless of existing conda\n"
+    printf "\t-o, --overwrite       Force overwrite of existing environment if it exists\n"
     printf "\n"
     printf "\tDefining variables on the command line will skip the\n"
     printf "\tinteractive elements within this script\n"
@@ -74,7 +75,6 @@ for arg in "$@"; do
 done
 
 POSITIONAL_ARGS=()
-
 while [[ $# -gt 0 ]]; do
     case $1 in
         -l|--anaconda-label)
@@ -114,6 +114,10 @@ while [[ $# -gt 0 ]]; do
         --download-base)
             DOWNLOAD_DATA=YES
             BASE_DATA_ONLY=YES
+            shift # past argument
+            ;;
+        -o|--overwrite)
+            FORCE_INSTALL=YES
             shift # past argument
             ;;
         -*|--*)
@@ -312,16 +316,39 @@ if [ -z "$ENV_NAME" ]; then
 
     # If a name was given, set it
     if [ -n "$isis_env_name" ]; then
-        ENV_NAME=$isis_env_name
+        if [ "$isis_env_name" = "auto" ]; then
+            # Get latest version from specified channels
+            if [ -n "$ISIS_VERSION" ]; then
+                LATEST_VERSION=$ISIS_VERSION
+            else
+                LATEST_VERSION=$($CLIENT search -c $ANACONDA_LABEL isis | grep -E "^isis\s+" | head -n 1 | awk '{print $2}')
+            fi
+            ENV_NAME="isis-$LATEST_VERSION"
+        else
+            ENV_NAME=$isis_env_name
+        fi
     fi
 fi
 
 # Check if the environment already exists 
 if $CLIENT env list | grep -qE "^$ENV_NAME[ ]."; then 
-    printf "\nEnvironment \"$ENV_NAME\" already exists. Not performing any updates.\n" 
-    printf "To delete the old environment, use the following commands:\n\n" 
-    printf "\t$ mamba deactivate\n" 
-    printf "\t$ mamba remove -n $ENV_NAME --all\n\n" 
+    if [ "$FORCE" = "true" ]; then
+        echo "Force flag is set. Removing existing environment [$ENV_NAME]"
+        $CLIENT remove -n $ENV_NAME --all -y || failed_command "Remove existing environment"
+        echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
+        $CLIENT create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
+            echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
+            echo "Seaching for $PACKAGE_NAME versions ..."
+            $CLIENT search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
+            exit 1
+        }
+        echo "Environment \"$ENV_NAME\" created and $PACKAGE_NAME installed."
+    else
+        printf "\nEnvironment \"$ENV_NAME\" already exists. Not performing any updates.\n" 
+        printf "To delete the old environment, use the following commands:\n\n" 
+        printf "\t$ mamba deactivate\n" 
+        printf "\t$ mamba remove -n $ENV_NAME --all\n\n" 
+    fi
 else
     # Create a new environment with the specified package
     echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
