@@ -82,6 +82,17 @@ if(DEFINED ENV{CONDA_PREFIX} AND CMAKE_INSTALL_PREFIX STREQUAL "/usr/local")
  set(CMAKE_INSTALL_PREFIX $ENV{CONDA_PREFIX})
 endif()
 
+# This is essential for tests to build
+if(NOT DEFINED ENV{ISISROOT})
+  message(FATAL_ERROR "Environment variable ISISROOT is not set.")
+endif()
+
+# No JPEG2000 support on Mac Arm
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
+  message(STATUS "Support for JPEG2000 is not available on Mac Arm.")
+  set(JP2KFLAG OFF)
+endif()
+
 # Prioritize passed in variables over env vars, probably a better way to do this
 if(DEFINED ENV{ISISDATA} AND NOT isisData)
  set(isisData $ENV{ISISDATA})
@@ -174,6 +185,10 @@ string(REPLACE ";" " " FLAGS_STR "${thirdPartyCppFlags}")
 
 set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${FLAGS_STR}" )
 
+if (NOT JP2KFLAG)
+  # Pass the NO_JP2K flag to C++
+  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DNO_JP2K")
+endif()
 
 # Flag to fix numeric literals problem with boost on linux
 # Add gold linker (and therefore, phtread) to speed up linux (spec. Ubuntu18.04) builds
@@ -597,6 +612,7 @@ install(FILES     ${CMAKE_SOURCE_DIR}/../LICENSE.md   DESTINATION  ${CMAKE_INSTA
 install(FILES     ${CMAKE_SOURCE_DIR}/../AUTHORS.rst  DESTINATION  ${CMAKE_INSTALL_PREFIX})
 install(FILES     ${CMAKE_SOURCE_DIR}/../CHANGELOG.md DESTINATION  ${CMAKE_INSTALL_PREFIX})
 install(FILES     ${CMAKE_BINARY_DIR}/isis_version.txt DESTINATION  ${CMAKE_INSTALL_PREFIX})
+install(FILES     ${CMAKE_BINARY_DIR}/ale_version.txt DESTINATION  ${CMAKE_INSTALL_PREFIX})
 install(DIRECTORY ${CMAKE_SOURCE_DIR}/scripts         DESTINATION  ${CMAKE_INSTALL_PREFIX})
 install(PROGRAMS ${CMAKE_BINARY_DIR}/lib/Camera.plugin DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/)
 install(PROGRAMS ${CMAKE_SOURCE_DIR}/scripts/downloadIsisData DESTINATION ${CMAKE_INSTALL_PREFIX}/bin/)
