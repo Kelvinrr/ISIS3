@@ -154,8 +154,8 @@ if [[ -z $ANACONDA_LABEL ]]; then
 fi
 
 # Force label to uppercase for LTS and RC
-if [ "${ANACONDA_LABEL,,}" = "lts" ] || [ "${ANACONDA_LABEL,,}" = "rc" ]; then
-    ANACONDA_LABEL="${ANACONDA_LABEL^^}"
+if [ "$ANACONDA_LABEL" = "lts" ] || [ "$ANACONDA_LABEL" = "rc" ]; then
+    ANACONDA_LABEL=$(echo "$ANACONDA_LABEL" | tr '[:lower:]' '[:upper:]')
 fi
 
 printf "\nISIS anaconda label set to [$ANACONDA_LABEL]\n"
@@ -317,19 +317,20 @@ if [ -z "$ENV_NAME" ]; then
 
     # If a name was given, set it
     if [ -n "$isis_env_name" ]; then
-        if [ "$isis_env_name" = "auto" ]; then
-            # Get latest version from specified channels
-            if [ -n "$ISIS_VERSION" ]; then
-                LATEST_VERSION=$ISIS_VERSION
-            else
-                LATEST_VERSION=$($CLIENT search -c $ANACONDA_LABEL isis | grep -E "^isis\s+" | head -n 1 | awk '{print $2}')
-            fi
-            ENV_NAME="isis-$LATEST_VERSION"
-        else
-            ENV_NAME=$isis_env_name
-        fi
+        ENV_NAME=$isis_env_name
     fi
+fi 
+
+if [ "$ENV_NAME" = "auto" ]; then
+    # Get latest version from specified channels
+    if [ -n "$ISIS_VERSION" ]; then
+        LATEST_VERSION=$ISIS_VERSION
+    else
+        LATEST_VERSION=$($CLIENT search $PACKAGE_NAME | grep -E "^isis\s+" | tail -n 1 | awk '{print $2}')
+    fi
+    ENV_NAME="isis-$LATEST_VERSION"
 fi
+
 
 # Check if the environment already exists 
 if $CLIENT env list | grep -qE "^$ENV_NAME[ ]."; then 
