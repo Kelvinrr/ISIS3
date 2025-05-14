@@ -322,7 +322,7 @@ if [ -z "$ENV_NAME" ]; then
         ENV_NAME=$isis_env_name
     fi
 fi 
-π
+
 if [ "$ENV_NAME" = "auto" ]; then
     # Get latest version from specified channels
     if [ -n "$ISIS_VERSION" ]; then
