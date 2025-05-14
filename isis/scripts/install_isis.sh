@@ -92,7 +92,7 @@ while [[ $# -gt 0 ]]; do
             ENV_NAME="$2"
             shift # past argument
             shift # past value
-            ;NO;
+            ;;
         -m|--miniforge-dir)
             check_valid_arg $1 $2
             MINIFORGE_DIR="$2"
