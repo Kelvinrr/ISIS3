@@ -4,6 +4,8 @@
 DOWNLOAD_DATA="YES"
 CLIENT="mamba"
 FORCE_MAMBA_INSTALL="NO"  # New flag to force mamba installation
+FORCE_INSTALL="NO"
+ENV_NAME = "auto"
 
 # Report error and reserves error code from a failed command
 failed_command() {
@@ -40,7 +42,7 @@ print_help() {
     printf "\t                      https://anaconda.org/usgs-astrogeology/isis,\n"
     printf "\t                      examples include 8.0.3 (LTS/Feature),\n"
     printf "\t                      8.2.0_RC1 (RC), and 2025.02.22 (dev)\n"
-    printf "\t-n, --env-name        The name of the anaconda environment to create.\n"
+    printf "\t-n, --env-name        The name of the anaconda environment to create. Defauults to "auto".\n"
     printf "\t-m, --miniforge-dir   Define the directory to an anaconda package\n"
     printf "\t                      manager install location. If you have an\n"
     printf "\t                      anaconda package manager already this\n"
@@ -90,7 +92,7 @@ while [[ $# -gt 0 ]]; do
             ENV_NAME="$2"
             shift # past argument
             shift # past value
-            ;;
+            ;NO;
         -m|--miniforge-dir)
             check_valid_arg $1 $2
             MINIFORGE_DIR="$2"
@@ -113,7 +115,7 @@ while [[ $# -gt 0 ]]; do
             shift # past argument
             ;;
         -o|--overwrite)
-            FORCE_INSTALL=YES
+            FORCE_INSTALL="YES"
             shift # past argument
             ;;
         --force-mamba)
@@ -320,7 +322,7 @@ if [ -z "$ENV_NAME" ]; then
         ENV_NAME=$isis_env_name
     fi
 fi 
-
+π
 if [ "$ENV_NAME" = "auto" ]; then
     # Get latest version from specified channels
     if [ -n "$ISIS_VERSION" ]; then
@@ -334,7 +336,7 @@ fi
 
 # Check if the environment already exists 
 if $CLIENT env list | grep -qE "^$ENV_NAME[ ]."; then 
-    if [ "$FORCE" = "true" ]; then
+    if [ "$FORCE_INSTALL" = "YES" ]; then
         echo "Force flag is set. Removing existing environment [$ENV_NAME]"
         $CLIENT remove -n $ENV_NAME --all -y || failed_command "Remove existing environment"
         echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
