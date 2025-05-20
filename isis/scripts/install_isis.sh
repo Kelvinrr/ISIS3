@@ -5,7 +5,8 @@ DOWNLOAD_DATA="YES"
 CLIENT="mamba"
 FORCE_MAMBA_INSTALL="NO"  # New flag to force mamba installation
 FORCE_INSTALL="NO"
-ENV_NAME = "auto"
+INSTALL_PREFIX="auto"  # New variable for installation prefix
+ENV_NAME="auto"
 
 # Report error and reserves error code from a failed command
 failed_command() {
@@ -52,9 +53,12 @@ print_help() {
     printf "\t-p, --data-prefix     The directory where ISISDATA is located. If\n"
     printf "\t                      this directory doesn't exist then one will\n"
     printf "\t                      be made at its location\n"
+    printf "\t--install-prefix      The directory where the env is installed. If\n"
+    printf "\t                      this directory doesn't exist then one will\n"
+    printf "\t                      be made at its location only if the parent directory exists.\n"
     printf "\t--no-data             Do not ask to download any data for the\n"
     printf "\t                      ISIS_DATA area.\n"
-    printf "\t--download-base       Download the base data without prompting the user.\n"
+    printf "\t-b,--download-base    Download the base data without prompting the user.\n"
     printf "\t--force-mamba         Force installation of mamba regardless of existing conda\n"
     printf "\t--overwrite           Force overwrite of existing environment if it exists\n"
     printf "\n"
@@ -105,6 +109,12 @@ while [[ $# -gt 0 ]]; do
             shift # past argument
             shift # past value
             ;;
+        --install-prefix)
+            check_valid_arg $1 $2
+            INSTALL_PREFIX="$2"
+            shift # past argument
+            shift # past value
+            ;;
         --no-data)
             DOWNLOAD_DATA=NO
             shift # past argument
@@ -134,6 +144,14 @@ while [[ $# -gt 0 ]]; do
 done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
+# Validate conflicting flags
+if [ "$DOWNLOAD_DATA" = "NO" ]; then
+    if [ -n "$BASE_DATA_ONLY" ] ; then
+        echo "Error: The --no-data flag cannot be used with --download-base or --download-models."
+        exit 1
+    fi
+fi
 
 # If an ANACONDA_LABEL was not set, ask the user for it
 if [[ -z $ANACONDA_LABEL ]]; then
@@ -303,6 +321,7 @@ else
     echo "Setting MINIFORGE_DIR to $MINIFORGE_DIR"
 fi
 
+
 # If an ENV_NAME was not set, ask the user for it
 if [ -z "$ENV_NAME" ]; then
     ENV_NAME="isis"
@@ -334,13 +353,31 @@ if [ "$ENV_NAME" = "auto" ]; then
 fi
 
 
+# Handle the --install-prefix flag
+if [ -n "$INSTALL_PREFIX" ] && [ "$INSTALL_PREFIX" != "auto" ]; then
+    if [ -d "$INSTALL_PREFIX" ]; then
+        echo "Using custom install prefix: $INSTALL_PREFIX"
+    else
+        echo "Error: Specified install prefix directory does not exist: $INSTALL_PREFIX"
+        exit 1
+    fi
+else
+    # Default behavior if --install-prefix is not set or set to "auto"
+    INSTALL_PREFIX=$CONDA_PREFIX/envs/
+fi
+
+INSTALL_PREFIX="$INSTALL_PREFIX/$ENV_NAME"
+ENV_PATH=$INSTALL_PREFIX
+
+echo "Installing ISIS at $INSTALL_PREFIX"
+
 # Check if the environment already exists 
-if $CLIENT env list | grep -qE "^$ENV_NAME[ ]."; then 
+if [ $CLIENT env list | grep -qE "^$ENV_NAME[ ]." ] || [ -d $INSTALL_PREFIX ]; then 
     if [ "$FORCE_INSTALL" = "YES" ]; then
         echo "Force flag is set. Removing existing environment [$ENV_NAME]"
-        $CLIENT remove -n $ENV_NAME --all -y || failed_command "Remove existing environment"
+        $CLIENT remove -p $INSTALL_PREFIX --all -y || failed_command "Remove existing environment"
         echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
-        $CLIENT create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
+        $CLIENT create -c conda-forge -c usgs-astrogeology -p $INSTALL_PREFIX $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
             echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
             echo "Seaching for $PACKAGE_NAME versions ..."
             $CLIENT search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
@@ -356,7 +393,7 @@ if $CLIENT env list | grep -qE "^$ENV_NAME[ ]."; then
 else
     # Create a new environment with the specified package
     echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
-    $CLIENT create -c conda-forge -c usgs-astrogeology -n $ENV_NAME $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
+    $CLIENT create -c conda-forge -c usgs-astrogeology -p $INSTALL_PREFIX $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
         echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
         echo "Seaching for $PACKAGE_NAME versions ..."
         $CLIENT search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
@@ -400,13 +437,7 @@ if [ ! -d "$ISISDATA_PREFIX" ]; then
     fi
 fi
 
-$CLIENT env config vars set -n $ENV_NAME ISISDATA=$ISISDATA_PREFIX ISISROOT=$MINIFORGE_DIR/envs/$ENV_NAME || failed_command "Mamba config var set"
-
-if [[ "$MINIFORGE_DIR" == *"/envs/$ENV_NAME"* ]]; then
-    ENV_PATH="$MINIFORGE_DIR"
-else
-    ENV_PATH="$MINIFORGE_DIR/envs/$ENV_NAME"
-fi
+$CLIENT env config vars set -p $INSTALL_PREFIX ISISDATA=$ISISDATA_PREFIX ISISROOT=$INSTAL_PREFIX || failed_command "Mamba config var set"
 
 if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
     DOWNLOAD_ISIS_DATA_SCRIPT="$ENV_PATH/bin/downloadIsisData"
@@ -436,7 +467,10 @@ if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
 
     if [ -n "$BASE_DATA_ONLY" ]; then
         echo "[Running] downloadIsisData base $ISISDATA_PREFIX"
-        $MINIFORGE_DIR/envs/$ENV_NAME/bin/downloadIsisData -n 20 base $ISISDATA_PREFIX || failed_command "ISISDATA base download"
+        $INSTALL_PREFIX/bin/downloadIsisData -n 20 base $ISISDATA_PREFIX || failed_command "ISISDATA base download"
+        echo "[Running] downloadIsisData all $ISISDATA_PREFIX --no-kernels"
+        $INSTALL_PREFIX/bin/downloadIsisData -n 20 all --no-kernels $ISISDATA_PREFIX || failed_command "ISISDATA base download"
+    fi
     else
         echo "You can do this later, read more at:" 
         printf "\n\thttps://astrogeology.usgs.gov/docs/how-to-guides/environment-setup-and-maintenance/isis-data-area/\n\n"
@@ -513,7 +547,7 @@ if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
             IFS=' ' read -a mission_arr <<< "$missions"
             for i in ${mission_arr[@]} ; do
                 echo "[Running] downloadIsisData ${i} $ISISDATA_PREFIX"
-                $MINIFORGE_DIR/envs/$ENV_NAME/bin/downloadIsisData -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
+                $INSTALL_PREFIX/bin/downloadIsisData -n 20 ${i} "$ISISDATA_PREFIX"/ || failed_command "ISISDATA ${i} download"
             done
         fi
     else
