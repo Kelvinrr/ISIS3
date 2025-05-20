@@ -402,7 +402,7 @@ else
     echo "Environment \"$ENV_NAME\" created and $PACKAGE_NAME installed."
 fi
 
-export PATH="$MINIFORGE_DIR/envs/$ENV_NAME/bin:$PATH"
+export PATH="$INSTALL_PREFIX/bin:$PATH"
 
 # If a ISISDATA_PREFIX was not set, ask the user for it
 if [ -z "$ISISDATA_PREFIX" ]; then
