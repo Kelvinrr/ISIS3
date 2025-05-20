@@ -470,7 +470,6 @@ if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
         $INSTALL_PREFIX/bin/downloadIsisData -n 20 base $ISISDATA_PREFIX || failed_command "ISISDATA base download"
         echo "[Running] downloadIsisData all $ISISDATA_PREFIX --no-kernels"
         $INSTALL_PREFIX/bin/downloadIsisData -n 20 all --no-kernels $ISISDATA_PREFIX || failed_command "ISISDATA base download"
-    fi
     else
         echo "You can do this later, read more at:" 
         printf "\n\thttps://astrogeology.usgs.gov/docs/how-to-guides/environment-setup-and-maintenance/isis-data-area/\n\n"
