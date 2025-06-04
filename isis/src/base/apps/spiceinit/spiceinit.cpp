@@ -132,14 +132,16 @@ namespace Isis {
       if (ui.GetBoolean("SPKSMITHED"))
         allowedSPK |= Kernel::typeEnum("SMITHED");
 
+      bool useSpiceQlWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
       KernelDb baseKernels(allowed);
       KernelDb ckKernels(allowedCK);
       KernelDb spkKernels(allowedSPK);
-
-      baseKernels.loadSystemDb(mission, lab);
-      ckKernels.loadSystemDb(mission, lab);
-      spkKernels.loadSystemDb(mission, lab);
-
+      if (!useSpiceQlWeb) {
+        baseKernels.loadSystemDb(mission, lab);
+        ckKernels.loadSystemDb(mission, lab);
+        spkKernels.loadSystemDb(mission, lab);
+      }
+      
       Kernel lk, pck, targetSpk, fk, ik, sclk, spk, iak, dem, exk;
       QList< priority_queue<Kernel> > ck;
       lk        = baseKernels.leapSecond(lab);
@@ -657,7 +659,8 @@ namespace Isis {
 
     double startPad = ui.GetDouble("STARTPAD");
     double endPad   = ui.GetDouble("ENDPAD");
-
+    std::cout << "startPad: " << startPad << std::endl;
+    std::cout << "endPad: " << endPad << std::endl;
     SpiceClient client(url, port, labels,
                        ckSmithed, ckRecon, ckPredicted, ckNadir,
                        spkSmithed, spkRecon, spkPredicted,
@@ -671,13 +674,14 @@ namespace Isis {
     starter.start();
     client.blockUntilComplete();
     connectionProgress.CheckStatus();
-
+    std::cout << "Client complete" << std::endl;
     PvlGroup kernelsGroup = client.kernelsGroup();
     PvlObject naifKeywords = client.naifKeywordsObject();
     Table *pointingTable = client.pointingTable();
     Table *positionTable = client.positionTable();
     Table *bodyTable = client.bodyRotationTable();
     Table *sunPosTable = client.sunPositionTable();
+    std::cout << "Tables created" << std::endl;
 
     // Verify everything in the kernels group exists, if not then our kernels are
     //   out of date.
@@ -719,6 +723,7 @@ namespace Isis {
     icube->write(*sunPosTable);
 
     try {
+      std::cout << "Creating camera" << std::endl;
       icube->camera();
     }
     catch (IException &e) {

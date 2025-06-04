@@ -74,9 +74,6 @@ namespace Isis {
       * @param time An ephemeris time (ET).
       */
       iTime(const double time) {
-        if(!p_lpInitialized)
-          LoadLeapSecondKernel();
-
         p_et = time;
       }
 

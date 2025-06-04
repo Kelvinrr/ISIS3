@@ -36,6 +36,7 @@ using json = nlohmann::json;
 #include "Target.h"
 #include "Blob.h"
 #include "spiceql.h"
+#include "Preference.h"
 
 using namespace std;
 
@@ -72,7 +73,7 @@ namespace Isis {
       
       // BONUS TODO: update to pull out separate init methods
       // try using ALE
-      bool hasTables = (kernels["TargetPosition"][0] == "Table");
+      bool hasTables = (kernels.hasKeyword("TargetPosition") && !kernels["TargetPosition"].isNull() && kernels["TargetPosition"][0] == "Table");
       m_usingNaif = !lab.hasObject("NaifKeywords") || !hasTables;
       m_usingAle = false;
 
@@ -82,9 +83,11 @@ namespace Isis {
           kernel_pvl << kernels;
 
           json props;
-          if (kernels["InstrumentPointing"][0].toUpper() == "NADIR") {
+          if (kernels.hasKeyword("InstrumentPointing") && !kernels["InstrumentPointing"].isNull() && kernels["InstrumentPointing"][0].toUpper() == "NADIR") {
             props["nadir"] = true;
           }
+          props["web"] = true;
+          // props["kernels"] = kernel_pvl.str(); 
 
           props["kernels"] = kernel_pvl.str();
 
@@ -93,6 +96,10 @@ namespace Isis {
           m_usingAle = true;
 
           isdInit(cube, lab, isd);
+        }
+        catch(exception &e) {
+          cout << "woops: " << e.what() << endl;
+          exit(1);
         }
         catch(...) {
           init(cube, lab, !hasTables);
@@ -306,7 +313,7 @@ namespace Isis {
     //  SpacecraftPosition.  The old keywords were in existance before the
     //  Table option, so we don't need to check for Table under the old
     //  keywords.
-    if (kernels["InstrumentPointing"].size() == 0) {
+    if (!kernels["InstrumentPointing"].isNull() && kernels["InstrumentPointing"].size() == 0) {
       throw IException(IException::Unknown,
                        "No camera pointing available",
                        _FILEINFO_);
@@ -330,7 +337,7 @@ namespace Isis {
     }
 
 
-    if (kernels["InstrumentPosition"].size() == 0) {
+    if (!kernels["InstrumentPosition"].isNull() && kernels["InstrumentPosition"].size() == 0) {
       throw IException(IException::Unknown,
                        "No instrument position available",
                        _FILEINFO_);
@@ -1278,15 +1285,14 @@ namespace Isis {
     QVariant storedClockTime = getStoredResult(key, SpiceDoubleType);
 
     if (storedClockTime.isNull()) {
+      bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
       SpiceDouble timeOutput;
-      NaifStatus::CheckErrors();
       if (clockTicks) {
-        sct2e_c(sclkCode, (SpiceDouble) clockValue.toDouble(), &timeOutput);
+        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), "juno", useWeb).first;
       }
       else {
-        scs2e_c(sclkCode, clockValue.toLatin1().data(), &timeOutput);
+        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), "juno", useWeb).first;
       }
-      NaifStatus::CheckErrors();
       storedClockTime = timeOutput;
       storeResult(key, SpiceDoubleType, timeOutput);
     }
