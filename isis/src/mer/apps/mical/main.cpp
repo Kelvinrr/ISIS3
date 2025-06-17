@@ -107,7 +107,6 @@ void IsisMain() {
   double kmperAU = 1.4959787066E8;
   gbl::sunAU = dist / kmperAU;
 
-
   //See what calibtation values the user wants to apply
   //run SetReferencePixelModel if RPCORRECTION for gui is false no correction is done
   gbl::useReferenceValue = 1;

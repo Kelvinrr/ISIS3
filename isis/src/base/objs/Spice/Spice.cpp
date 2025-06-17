@@ -141,9 +141,10 @@ namespace Isis {
     m_bodyFrameCode = new SpiceInt;
 
     m_naifKeywords = new PvlObject("NaifKeywords");
-
+    
     // Get the kernel group and load main kernels
     PvlGroup kernels = lab.findGroup("Kernels", Pvl::Traverse);
+    m_mission_name = (QString)lab.findGroup("Instrument", Pvl::Traverse).findKeyword("SpacecraftName");
 
     // Get the time padding first
     if (kernels.hasKeyword("StartPadding")) {
@@ -1287,11 +1288,12 @@ namespace Isis {
     if (storedClockTime.isNull()) {
       bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
       SpiceDouble timeOutput;
+      cout << "short spacecraft name " << m_mission_name << endl;
       if (clockTicks) {
-        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), "juno", useWeb).first;
+        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), m_mission_name.toStdString(), useWeb).first;
       }
       else {
-        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), "juno", useWeb).first;
+        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), m_mission_name.toStdString(), useWeb).first;
       }
       storedClockTime = timeOutput;
       storeResult(key, SpiceDoubleType, timeOutput);
