@@ -97,10 +97,6 @@ namespace Isis {
 
           isdInit(cube, lab, isd);
         }
-        catch(exception &e) {
-          cout << "woops: " << e.what() << endl;
-          exit(1);
-        }
         catch(...) {
           init(cube, lab, !hasTables);
         }
@@ -1288,7 +1284,6 @@ namespace Isis {
     if (storedClockTime.isNull()) {
       bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
       SpiceDouble timeOutput;
-      cout << "short spacecraft name " << m_mission_name << endl;
       if (clockTicks) {
         timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), m_mission_name.toStdString(), useWeb).first;
       }
