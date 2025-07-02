@@ -338,8 +338,8 @@ namespace Isis {
    */
   int iTime::DayOfYear() const {
     bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
-    return IString(utc.substr(19, 3).c_str()).ToInteger();
+    string utc = SpiceQL::etToUtc(p_et, "D", 3, useWeb).first;
+    return IString(utc.substr(5, 3).c_str()).ToInteger();
   }
 
   /**
@@ -359,7 +359,7 @@ namespace Isis {
    */
   QString iTime::UTC(int precision) const {
     bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 7, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", 4, useWeb).first;
     return utc.c_str();
   }
 
