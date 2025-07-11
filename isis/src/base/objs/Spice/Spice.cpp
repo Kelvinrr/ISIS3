@@ -1282,7 +1282,7 @@ namespace Isis {
     QVariant storedClockTime = getStoredResult(key, SpiceDoubleType);
 
     if (storedClockTime.isNull()) {
-      bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+      bool useWeb = Preference::Preferences().useWebSpice();
       SpiceDouble timeOutput;
       if (clockTicks) {
         timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), m_mission_name.toStdString(), useWeb).first;

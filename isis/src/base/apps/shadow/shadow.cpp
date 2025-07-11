@@ -77,7 +77,7 @@ namespace Isis {
         userKernels = true;
       }
       
-      bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+      bool useWeb = Preference::Preferences().useWebSpice();
 
       if (userKernels) {
         auto [output, kernels] = SpiceQL::getTargetStates(etStart, "sun", observer, bff, "NONE", "base", {"reconstructed"}, {"reconstructed"}, useWeb, true);

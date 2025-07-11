@@ -117,7 +117,7 @@ namespace Isis {
       double unbinnedRate = (74.0 + (deltaLineTimerCount / 16.0)) / 1000000.0;
       double lineRate = unbinnedRate * binMode;
 
-      bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+      bool useWeb = Preference::Preferences().useWebSpice();
 
       // get the actual original start time by making adjustments to the
       // spacecraft clock start count in the labels

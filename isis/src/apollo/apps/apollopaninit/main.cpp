@@ -241,21 +241,21 @@ void IsisMain() {
 
 
   //////////////////////////////////////////attach a target rotation table
-  bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+  bool useWeb = Preference::Preferences().useWebSpice();
   std::string frameName;
-   SpiceInt frameCode = 0;
-   try {
-     auto [output, kernels] = SpiceQL::getTargetFrameInfo(301, mission.toLower().toStdString(), useWeb);
-     frameCode = output["frameCode"].get<SpiceInt>();
-     frameName = output["frameName"].get<std::string>();
-   } catch(std::invalid_argument) {
-     std::string naifTarget = "IAU_MOON";
-     auto [frameCode, kernels] = SpiceQL::translateNameToCode(naifTarget, mission.toLower().toStdString(), useWeb);
-     if(frameCode == 0) {
-       QString msg = "Can not find NAIF code for [" + QString::fromStdString(naifTarget) + "]";
-       throw IException(IException::Io, msg, _FILEINFO_);
-     }
-   }
+  SpiceInt frameCode = 0;
+  try {
+    auto [output, kernels] = SpiceQL::getTargetFrameInfo(301, mission.toLower().toStdString(), useWeb);
+    frameCode = output["frameCode"].get<SpiceInt>();
+    frameName = output["frameName"].get<std::string>();
+  } catch(std::invalid_argument) {
+    std::string naifTarget = "IAU_MOON";
+    auto [frameCode, kernels] = SpiceQL::translateNameToCode(naifTarget, mission.toLower().toStdString(), useWeb);
+    if(frameCode == 0) {
+      QString msg = "Can not find NAIF code for [" + QString::fromStdString(naifTarget) + "]";
+      throw IException(IException::Io, msg, _FILEINFO_);
+    }
+  }
 
 
   spRot = new SpiceRotation(frameCode);

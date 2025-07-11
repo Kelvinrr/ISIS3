@@ -95,7 +95,7 @@ void IsisMain() {
   iTime startTime = gbl::mi->StartTime();
   //Get the distance between Mars and the Sun at the given time in
   // Astronomical Units (AU)
-  bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+  bool useWeb = Preference::Preferences().useWebSpice();
 
   double sunpos[6];
   std::vector<double> etStart = {startTime.Et()};

@@ -178,7 +178,7 @@ namespace Isis {
           NaifStatus::CheckErrors();
           double sunpos[6];
 
-          bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+          bool useWeb = Preference::Preferences().useWebSpice();
 
           std::vector<double> etStartVec = {etStart};
           auto [sunLt, kernels] = SpiceQL::getTargetStates(etStartVec, "sun", "mars", "iau_mars", "LT+S", "mro", {"reconstructed"}, {"reconstructed"}, useWeb);

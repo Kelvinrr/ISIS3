@@ -44,7 +44,7 @@ namespace Isis {
   iTime::iTime(const QString &time) {
     // Convert the time string to a double ephemeris time
     // Convert the time string to a double ephemeris time
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     p_et = SpiceQL::utcToEt(time.toLatin1().data(), useWeb).first;
   }
 
@@ -61,14 +61,14 @@ namespace Isis {
    */
   void iTime::operator=(const QString &time) {
     // Convert the time string to a double ephemeris time
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     p_et = SpiceQL::utcToEt(time.toLatin1().data(), useWeb).first;
   }
 
   // Overload of "=" with a c string
   void iTime::operator=(const char *time) {
     // Convert the time string to a double ephemeris time
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     p_et = SpiceQL::utcToEt(time, useWeb).first;
   }
 
@@ -210,7 +210,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Year() const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
     return IString(utc.substr(0, 4).c_str()).ToInteger();
   }
@@ -230,7 +230,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Month() const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
     return IString(utc.substr(5, 2).c_str()).ToInteger();
   }
@@ -250,7 +250,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Day() const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
     return IString(utc.substr(8, 2).c_str()).ToInteger();
   }
@@ -270,7 +270,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Hour() const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
     return IString(utc.substr(11, 2).c_str()).ToInteger();
   }
@@ -290,7 +290,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Minute() const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
     return IString(utc.substr(14, 2).c_str()).ToInteger();
   }
@@ -317,7 +317,7 @@ namespace Isis {
    * @return double
    */
   double iTime::Second() const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "ISOC", 8, useWeb).first;
     return IString(utc.substr(17, 7).c_str()).ToDouble();
   }
@@ -337,7 +337,7 @@ namespace Isis {
    * @return int
    */
   int iTime::DayOfYear() const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "D", 3, useWeb).first;
     return IString(utc.substr(5, 3).c_str()).ToInteger();
   }
@@ -358,7 +358,7 @@ namespace Isis {
    * @return string The internalized time, in UTC format
    */
   QString iTime::UTC(int precision) const {
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     string utc = SpiceQL::etToUtc(p_et, "ISOC", 4, useWeb).first;
     return utc.c_str();
   }
@@ -396,7 +396,7 @@ namespace Isis {
     }
 
     double et;
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     et = SpiceQL::utcToEt(utcString.toLatin1().data(), useWeb).first;
     setEt(et);
     NaifStatus::CheckErrors();
