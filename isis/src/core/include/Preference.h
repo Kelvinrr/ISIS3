@@ -77,6 +77,7 @@ namespace Isis {
       bool outputErrorAsPvl();
       bool getShowDeprecatedPref();
       bool getStackTracePref();
+      bool useWebSpice();
 
       static Preference &Preferences(bool unitTest = false);
 

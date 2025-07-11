@@ -155,6 +155,10 @@ namespace Isis {
     return checkIfPrefEquals("ErrorFacility", "StackTrace", "Off");
   }
 
+  bool Preference::useWebSpice() {
+    return checkIfPrefEquals("WebSpice", "UseWebSpice", "true", false);
+  }
+
   void Preference::Shutdown() {
     if(p_preference) {
       delete p_preference;
