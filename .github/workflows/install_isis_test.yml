@@ -65,9 +65,10 @@ jobs:
 
       - name: Check ISIS installation
         run: |
-          echo "Checking ISIS installation at /tmp/isis_test_prefix/$EXPECTED_ENV_NAME"
+          echo "Checking ISIS installation at /tmp/isis_test_prefix/"
+          ls /tmp/isis_test_prefix/
           ISIS_ENV_PATH=$(find /tmp/isis_test_prefix -mindepth 1 -maxdepth 1 -type d | head -n 1)
-          source "$ISIS_ENV_PATH/bin/activate"
+          conda activate $ISIS_ENV_PATH
           spiceinit -H
           echo "ISIS installation check passed."
 
