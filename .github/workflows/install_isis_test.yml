@@ -38,15 +38,24 @@ jobs:
           case "${{ matrix.test_case }}" in
             default)
               echo "Running default install_isis.sh"
+              EXPECTED_ENV_NAME="isis-8.0.3"
               bash ./isis/scripts/install_isis.sh -l lts -v latest -n auto --no-data --install-prefix /tmp/isis_test_prefix
+              conda activate /tmp/isis_test_prefix/$EXPECTED_ENV_NAME
+              spiceinit -H
               ;;
             custom_prefix)
               echo "Running install_isis.sh with custom prefix"
-              bash ./isis/scripts/install_isis.sh -l dev -v latest -n auto --no-data --install-prefix /tmp/isis_test_prefix
+              EXPECTED_ENV_NAME="isis-dev"
+              bash ./isis/scripts/install_isis.sh -l dev -v latest --no-data -n $EXPECTED_ENV_NAME --install-prefix /tmp/isis_test_prefix
+              conda activate /tmp/isis_test_prefix/$EXPECTED_ENV_NAME
+              spiceinit -H
               ;;
             no_env)
               echo "Running install_isis.sh with minimal environment"
+              EXPECTED_ENV_NAME="isis-8.3.0"
               bash ./isis/scripts/install_isis.sh -l main -v latest -n auto --install-prefix /tmp/isis_test_prefix
+              conda activate /tmp/isis_test_prefix/$EXPECTED_ENV_NAME
+              spiceinit -H
               ;;
             *)
               echo "Unknown test case"
