@@ -33,6 +33,7 @@ jobs:
 
       - name: Run install_isis.sh with test case
         run: |
+          mkdir -p /tmp/isis_test_prefix
           set -e
           case "${{ matrix.test_case }}" in
             default)
