@@ -1,0 +1,69 @@
+name: Test install_isis.sh
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'isis/scripts/install_isis.sh'
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - 'isis/scripts/install_isis.sh'
+  workflow_dispatch:
+
+jobs:
+  test-install-isis:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+        test_case:
+          - default
+          - custom_prefix
+          - no_env
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make install_isis.sh executable
+        run: chmod +x ./isis/scripts/install_isis.sh
+
+      - name: Run install_isis.sh with test case
+        run: |
+          set -e
+          case "${{ matrix.test_case }}" in
+            default)
+              echo "Running default install_isis.sh"
+              bash ./isis/scripts/install_isis.sh -l lts -v latest -n auto --no-data --prefix /tmp/isis_test_prefix
+              ;;
+            custom_prefix)
+              echo "Running install_isis.sh with custom prefix"
+              bash ./isis/scripts/install_isis.sh -l dev -v latest -n auto --no-data --prefix /tmp/isis_test_prefix
+              ;;
+            no_env)
+              echo "Running install_isis.sh with minimal environment"
+              bash ./isis/scripts/install_isis.sh -l main -v latest -n auto --prefix /tmp/isis_test_prefix
+              ;;
+            *)
+              echo "Unknown test case"
+              exit 1
+              ;;
+          esac
+
+      - name: Check ISIS installation
+        run: |
+          case "${{ matrix.test_case }}" in
+            custom_prefix)
+              export PATH="/tmp/isis_test_prefix/bin:$PATH"
+              ;;
+            *)
+              # Assume default install location is in PATH
+              ;;
+          esac
+          if ! command -v spiceinit -H &> /dev/null; then
+            echo "spiceinit command not found. ISIS may not be installed correctly."
+            exit 1
+          fi
