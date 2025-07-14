@@ -39,19 +39,19 @@ jobs:
           set -e
           case "${{ matrix.test_case }}" in
             default)
-              echo "Running default install_isis.sh"
+              echo "Running install_isis.sh with LTS environment"
               EXPECTED_ENV_NAME="isis-8.0.3"
               bash ./isis/scripts/install_isis.sh -l lts -v latest -n auto --no-data --install-prefix /tmp/isis_test_prefix
               # /tmp/isis_test_prefix/$EXPECTED_ENV_NAME/bin/spiceinit -H
               ;;
             custom_prefix)
-              echo "Running install_isis.sh with custom prefix"
+              echo "Running install_isis.sh with dev environment"
               EXPECTED_ENV_NAME="isis-dev"
               bash ./isis/scripts/install_isis.sh -l dev -v latest --no-data -n $EXPECTED_ENV_NAME --install-prefix /tmp/isis_test_prefix
               # /tmp/isis_test_prefix/$EXPECTED_ENV_NAME/bin/spiceinit -H
               ;;
             no_env)
-              echo "Running install_isis.sh with minimal environment"
+              echo "Running install_isis.sh with main environment"
               EXPECTED_ENV_NAME="isis-8.3.0"
               bash ./isis/scripts/install_isis.sh -l main -v latest -n auto --install-prefix /tmp/isis_test_prefix
               # /tmp/isis_test_prefix/$EXPECTED_ENV_NAME/bin/spiceinit -H
@@ -67,6 +67,7 @@ jobs:
         run: |
           echo "Checking ISIS installation at /tmp/isis_test_prefix/"
           ls /tmp/isis_test_prefix/
+          source ~/.bashrc
           ISIS_ENV_PATH=$(find /tmp/isis_test_prefix -mindepth 1 -maxdepth 1 -type d | head -n 1)
           conda activate $ISIS_ENV_PATH
           spiceinit -H
