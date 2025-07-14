@@ -6,11 +6,13 @@ on:
       - dev
     paths:
       - 'isis/scripts/install_isis.sh'
+      - '.github/workflows/install_isis_test.yml'
   pull_request:
     branches:
       - dev
     paths:
       - 'isis/scripts/install_isis.sh'
+      - '.github/workflows/install_isis_test.yml'
   workflow_dispatch:
 
 jobs:
