@@ -69,7 +69,6 @@ jobs:
           ls /tmp/isis_test_prefix/
           source ~/.bashrc
           ISIS_ENV_PATH=$(find /tmp/isis_test_prefix -mindepth 1 -maxdepth 1 -type d | head -n 1)
-          mamba activate $ISIS_ENV_PATH
-          spiceinit -H
+          $ISIS_ENV_PATH/bin/spiceinit -H
           echo "ISIS installation check passed."
 
