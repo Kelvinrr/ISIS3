@@ -37,15 +37,15 @@ jobs:
           case "${{ matrix.test_case }}" in
             default)
               echo "Running default install_isis.sh"
-              bash ./isis/scripts/install_isis.sh -l lts -v latest -n auto --no-data --prefix /tmp/isis_test_prefix
+              bash ./isis/scripts/install_isis.sh -l lts -v latest -n auto --no-data --install-prefix /tmp/isis_test_prefix
               ;;
             custom_prefix)
               echo "Running install_isis.sh with custom prefix"
-              bash ./isis/scripts/install_isis.sh -l dev -v latest -n auto --no-data --prefix /tmp/isis_test_prefix
+              bash ./isis/scripts/install_isis.sh -l dev -v latest -n auto --no-data --install-prefix /tmp/isis_test_prefix
               ;;
             no_env)
               echo "Running install_isis.sh with minimal environment"
-              bash ./isis/scripts/install_isis.sh -l main -v latest -n auto --prefix /tmp/isis_test_prefix
+              bash ./isis/scripts/install_isis.sh -l main -v latest -n auto --install-prefix /tmp/isis_test_prefix
               ;;
             *)
               echo "Unknown test case"
