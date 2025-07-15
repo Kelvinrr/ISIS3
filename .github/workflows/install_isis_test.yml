@@ -35,11 +35,6 @@ jobs:
 
       - name: Run install_isis.sh with test case
         run: |
-
-          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
-            sudo apt-get update
-            sudo apt-get -y install libmkl-rt
-          fi
           mkdir -p /tmp/isis_test_prefix
           set -e
           case "${{ matrix.test_case }}" in
