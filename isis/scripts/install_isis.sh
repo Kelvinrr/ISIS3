@@ -374,7 +374,7 @@ if [ $CLIENT env list | grep -qE "^$ENV_NAME[ ]." ] || [ -d $INSTALL_PREFIX ]; t
         echo "Force flag is set. Removing existing environment [$ENV_NAME]"
         $CLIENT remove -p $INSTALL_PREFIX --all -y || failed_command "Remove existing environment"
         echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
-        $CLIENT create -c conda-forge -c usgs-astrogeology -p $INSTALL_PREFIX $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
+        $CLIENT create -c conda-forge -c usgs-astrogeology -p $INSTALL_PREFIX $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL mkl rclone -y || {
             echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
             echo "Seaching for $PACKAGE_NAME versions ..."
             $CLIENT search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
@@ -390,7 +390,7 @@ if [ $CLIENT env list | grep -qE "^$ENV_NAME[ ]." ] || [ -d $INSTALL_PREFIX ]; t
 else
     # Create a new environment with the specified package
     echo "Creating a new environment [$ENV_NAME] and installing $PACKAGE_NAME"
-    $CLIENT create -c conda-forge -c usgs-astrogeology -p $INSTALL_PREFIX $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL rclone -y || {
+    $CLIENT create -c conda-forge -c usgs-astrogeology -p $INSTALL_PREFIX $PACKAGE_NAME=$ISIS_VERSION $LIBGL_INSTALL mkl rclone -y || {
         echo "Failed to install $PACKAGE_NAME=$ISIS_VERSION"
         echo "Seaching for $PACKAGE_NAME versions ..."
         $CLIENT search -c conda-forge -c usgs-astrogeology $PACKAGE_NAME || failed_command "Search for $PACKAGE_NAME versions"
@@ -551,6 +551,15 @@ if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
         printf "You can download mission specific ISISDATA later with\n" 
         printf "\tdownloadIsisData [mission_name] \$ISISDATA"
     fi
+fi
+
+# Run isisvarinit.py with ISISDATA and ISISROOT
+if [ -x "$INSTALL_PREFIX/isis/scripts/isisVarInit.py" ]; then
+    ISISROOT="$INSTALL_PREFIX"
+    ISISDATA="$ISISDATA_PREFIX"
+    "$INSTALL_PREFIX/isis/scripts/isisVarInit.py" "$ISISDATA" "$ISISROOT" || failed_command "Running isisvarinit.py"
+else
+    echo "Warning: isisvarinit.py not found or not executable in $INSTALL_PREFIX/isis/scripts/"
 fi
 
 printf "\n\n"
