@@ -23,9 +23,9 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-14]
         test_case:
-          - default
-          - custom_prefix
-          - no_env
+          - lts
+          - dev
+          - main
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,26 +35,26 @@ jobs:
 
       - name: Run install_isis.sh with test case
         run: |
+
+          if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then
+            sudo apt-get update
+            sudo apt-get -y install libmkl-rt
+          fi
           mkdir -p /tmp/isis_test_prefix
           set -e
           case "${{ matrix.test_case }}" in
-            default)
+            lts)
               echo "Running install_isis.sh with LTS environment"
-              EXPECTED_ENV_NAME="isis-8.0.3"
               bash ./isis/scripts/install_isis.sh -l lts -v latest -n auto --no-data --install-prefix /tmp/isis_test_prefix
-              # /tmp/isis_test_prefix/$EXPECTED_ENV_NAME/bin/spiceinit -H
               ;;
-            custom_prefix)
+            dev)
               echo "Running install_isis.sh with dev environment"
               EXPECTED_ENV_NAME="isis-dev"
               bash ./isis/scripts/install_isis.sh -l dev -v latest --no-data -n $EXPECTED_ENV_NAME --install-prefix /tmp/isis_test_prefix
-              # /tmp/isis_test_prefix/$EXPECTED_ENV_NAME/bin/spiceinit -H
               ;;
-            no_env)
+            main)
               echo "Running install_isis.sh with main environment"
-              EXPECTED_ENV_NAME="isis-8.3.0"
               bash ./isis/scripts/install_isis.sh -l main -v latest -n auto --install-prefix /tmp/isis_test_prefix
-              # /tmp/isis_test_prefix/$EXPECTED_ENV_NAME/bin/spiceinit -H
               ;;
             *)
               echo "Unknown test case"
