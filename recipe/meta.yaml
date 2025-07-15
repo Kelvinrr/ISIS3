@@ -159,7 +159,7 @@ requirements:
   - {{ pin_compatible('libpng') }}
   - libtiff
   - mesalib
-  - mkl                                           # [not (osx and arm64)]
+  - {{ pin_compatible('mkl', min_pin='x', max_pin='x.x') }}  # [not (osx and arm64)]
   - mysql
   - nanoflann
   - nlohmann_json
