@@ -65,8 +65,9 @@ jobs:
           source ~/.bashrc
           ISIS_ENV_PATH=$(find /tmp/isis_test_prefix -mindepth 1 -maxdepth 1 -type d | head -n 1)
           # weird linux thing
-          export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/:$LD_LIBRARY_PATH
+          cp $ISIS_ENV_PATH/lib/libmkl_rt.so $ISIS_ENV_PATH/lib/libmkl_rt.so.2
           export ISISROOT=$ISIS_ENV_PATH
           $ISIS_ENV_PATH/bin/spiceinit -H
+
           echo "ISIS installation check passed."
 
