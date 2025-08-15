@@ -45,6 +45,8 @@ build:
 # Shotgun strat on requirements until we can narrow them down
 requirements:
   build:
+   - {{ compiler('c') }}
+   - {{ compiler('cxx') }}
    - ale =0.11.0,<1
    - aom
    - armadillo
@@ -89,7 +91,7 @@ requirements:
    - mkl                         # [not (osx and arm64)]
    - mysql
    - mysql-connector-c           # [not (osx and arm64)]
-   - nanoflann <1.4
+   - nanoflann ?>=1.6
    - nlohmann_json=3.11.2
    - ninja >=1.10,<1.11
    - nn
