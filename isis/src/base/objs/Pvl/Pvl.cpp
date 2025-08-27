@@ -92,7 +92,7 @@ namespace Isis {
       } // end of _type search
 
       // not a group or object, must be a keyword
-      else if (key != "_type" && key != "_filename" && key != "Data") { 
+      else if (key != "_type" && key != "_filename" && key != "_data") { 
         PvlKeyword keyword;
         keyword.setName(QString::fromStdString(key));
         if (value.is_array()) 
