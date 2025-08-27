@@ -2923,7 +2923,7 @@ namespace Isis {
       }
       std::string jsonblobstr = jsonOut.dump();
       std::string name = "CubeLabel";
-      gdalDataset()->SetMetadataItem(name.c_str(), jsonblobstr.c_str(), "USGS");
+      gdalDataset()->SetMetadataItem(name.c_str(), jsonblobstr.c_str(), "json:ISIS3");
 
       if (this->label()->findObject("IsisCube").hasGroup("Mapping")) {
         PvlGroup &mappingGroup = this->label()->findObject("IsisCube").findGroup("Mapping");

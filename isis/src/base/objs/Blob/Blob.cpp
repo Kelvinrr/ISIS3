@@ -253,14 +253,18 @@ namespace Isis {
   void Blob::ReadGdal(GDALDataset *dataset) {
     try {
       std::string key = QString(p_type + "_" + p_blobName).toStdString();
-      const char *jsonblobStr = dataset->GetMetadataItem(key.c_str(), "USGS");
-      if (jsonblobStr == nullptr) {
+      
+      CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
+      const char *metadataItem = CPLParseNameValue(metadata[0], nullptr);
+      ordered_json jsonblob = nlohmann::ordered_json::parse(metadataItem);
+
+      if (jsonblob.find(key) == jsonblob.end()) {
         QString msg = "The key [" + QString::fromStdString(key) + "] does not exist on the geodata set.";
         throw IException( IException::Io, msg, _FILEINFO_);
       }
-      ordered_json jsonblob = ordered_json::parse(jsonblobStr);
-      std::string blobData = jsonblob[key]["Data"];
-      jsonblob[key].erase("Data");
+
+      std::string blobData = jsonblob[key]["_data"];
+      jsonblob[key].erase("_data");
 
       Pvl pvl;
       Pvl::readObject(pvl, jsonblob);
@@ -462,11 +466,11 @@ namespace Isis {
 
       blobObj["Bytes"] = toString(p_nbytes);
       blobObj["StartByte"] = toString(1);
-      if(blobObj.hasKeyword("Data")) { 
-        blobObj["Data"] = QString::fromStdString(stream.str()); 
+      if(blobObj.hasKeyword("_data")) { 
+        blobObj["_data"] = QString::fromStdString(stream.str()); 
       }
       else { 
-        blobObj += PvlKeyword("Data", QString::fromStdString(stream.str()));
+        blobObj += PvlKeyword("_data", QString::fromStdString(stream.str()));
       }
 
       if(blobObj.hasKeyword("Name")) { 
@@ -479,7 +483,7 @@ namespace Isis {
       // update metadata
       string jsonblobstr = pvl.toJson()["Root"].dump();
       string key = this->Type().toStdString() + "_" + this->Name().toStdString();
-      dataset->SetMetadataItem(key.c_str(), jsonblobstr.c_str(), "USGS");
+      dataset->SetMetadataItem(key.c_str(), jsonblobstr.c_str(), "json:ISIS3");
     }
     catch(exception &e) {
       cout << "Failed to write blob [" + p_blobName + "]: " << e.what() << endl;
