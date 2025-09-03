@@ -252,15 +252,25 @@ namespace Isis {
 
   void Blob::ReadGdal(GDALDataset *dataset) {
     try {
-      std::string key = QString(p_type + "_" + p_blobName).toStdString();
+      std::string key = p_type.toStdString();
+      if (p_blobName != "IsisCube") {
+        key = key + "_" + (p_blobName.toStdString());
+      }
+      const char *metadataItem = dataset->GetMetadataItem(key.c_str(), "json:ISIS3");
+      if (metadataItem) {
+        std::cout << metadataItem << std::endl;
+      }
+      else {
+        std::cout << "Couldn't get " << key << " from metadata" << std::endl;
+      }
       
       CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
-      const char *metadataItem = CPLParseNameValue(metadata[0], nullptr);
-      ordered_json jsonblob = nlohmann::ordered_json::parse(metadataItem);
+      const char *metadataJsonString = metadata[0];
+      ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
 
       if (jsonblob.find(key) == jsonblob.end()) {
         QString msg = "The key [" + QString::fromStdString(key) + "] does not exist on the geodata set.";
-        throw IException( IException::Io, msg, _FILEINFO_);
+        throw IException(IException::Io, msg, _FILEINFO_);
       }
 
       std::string blobData = jsonblob[key]["_data"];
@@ -270,7 +280,9 @@ namespace Isis {
       Pvl::readObject(pvl, jsonblob);
 
       p_blobName = QString::fromStdString(jsonblob[key]["Name"]);
-      p_type = QString::fromStdString(jsonblob[key]["_container_name"]);
+      if (jsonblob[key].contains("_container_name")) {
+        p_type = QString::fromStdString(jsonblob[key]["_container_name"]);
+      }
 
       Find(pvl);
       ReadData(blobData);
@@ -481,9 +493,21 @@ namespace Isis {
       }
 
       // update metadata
-      string jsonblobstr = pvl.toJson()["Root"].dump();
-      string key = this->Type().toStdString() + "_" + this->Name().toStdString();
-      dataset->SetMetadataItem(key.c_str(), jsonblobstr.c_str(), "json:ISIS3");
+      std::string key = this->Type().toStdString();
+      if (p_blobName != "IsisCube") {
+        key = key + "_" + (this->Name().toStdString());
+      }
+      // Should check for metadata
+      CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
+      const char *metadataJsonString = metadata[0];
+      ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
+      jsonblob[key] = pvl.toJson()["Root"][key];
+      string jsonblobstr = jsonblob.dump();
+
+      char **outputMetadata = new char*[1];
+      outputMetadata[0] = jsonblobstr.data();
+      dataset->SetMetadata(outputMetadata, "json:ISIS3");
+      delete []outputMetadata;
     }
     catch(exception &e) {
       cout << "Failed to write blob [" + p_blobName + "]: " << e.what() << endl;
