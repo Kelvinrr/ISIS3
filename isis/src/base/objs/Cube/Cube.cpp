@@ -2921,9 +2921,27 @@ namespace Isis {
           jsonOut[key] = val;
         }
       }
-      std::string jsonblobstr = jsonOut.dump();
-      std::string name = "CubeLabel";
-      gdalDataset()->SetMetadataItem(name.c_str(), jsonblobstr.c_str(), "json:ISIS3");
+      
+      char ** outputMetadata = new char*[1];
+      // Check for existing data, if there is data then only update the label
+      CPLStringList metadata = CPLStringList(gdalDataset()->GetMetadata("json:ISIS3"), false);
+
+      std::string jsonblobstr = "";
+      if (metadata) {
+        const char *metadataJsonString = metadata[0];
+        nlohmann::ordered_json metadataAsJson = nlohmann::ordered_json::parse(metadataJsonString);
+        for (auto& [key, val] : jsonOut.items()) {
+          metadataAsJson[key] = val;
+        }
+        jsonblobstr = metadataAsJson.dump();
+      }
+      else {
+        jsonblobstr = jsonOut.dump();
+      }
+
+      outputMetadata[0] = jsonblobstr.data();
+      gdalDataset()->SetMetadata(outputMetadata, "json:ISIS3");
+      delete []outputMetadata;
 
       if (this->label()->findObject("IsisCube").hasGroup("Mapping")) {
         PvlGroup &mappingGroup = this->label()->findObject("IsisCube").findGroup("Mapping");
