@@ -256,14 +256,7 @@ namespace Isis {
       if (p_blobName != "IsisCube") {
         key = key + "_" + (p_blobName.toStdString());
       }
-      const char *metadataItem = dataset->GetMetadataItem(key.c_str(), "json:ISIS3");
-      if (metadataItem) {
-        std::cout << metadataItem << std::endl;
-      }
-      else {
-        std::cout << "Couldn't get " << key << " from metadata" << std::endl;
-      }
-      
+
       CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
       const char *metadataJsonString = metadata[0];
       ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
@@ -499,8 +492,11 @@ namespace Isis {
       }
       // Should check for metadata
       CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
-      const char *metadataJsonString = metadata[0];
-      ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
+      ordered_json jsonblob = {};
+      if (metadata) {
+        const char *metadataJsonString = metadata[0];
+        jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
+      }
       jsonblob[key] = pvl.toJson()["Root"][key];
       string jsonblobstr = jsonblob.dump();
 
@@ -510,7 +506,8 @@ namespace Isis {
       delete []outputMetadata;
     }
     catch(exception &e) {
-      cout << "Failed to write blob [" + p_blobName + "]: " << e.what() << endl;
+      QString msg = "Failed to write blob [" + p_blobName + "]: " + QString(e.what());
+      throw IException(IException::Unknown, msg, _FILEINFO_);
     }
   }
 
