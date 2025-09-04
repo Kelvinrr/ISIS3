@@ -1,12 +1,12 @@
 channels:
   - usgs-astrogeology
   - conda-forge
-  - defaults
 
 dependencies:
-  - ale >=0.7.1
+  - ale =0.7.1
   - boost=1.68.0
   - armadillo
+  - xorg-libx11=1.6.9
   - blas
   - bullet=2.86.1=0
   - bz2file
@@ -25,7 +25,7 @@ dependencies:
   - hdf5
   - icu
   - jama
-  - jpeg==9b
+  - jpeg==9d
   - kakadu==1
   - krb5
   - libpng>=1.6.34
@@ -36,8 +36,8 @@ dependencies:
   - mesalib
   - mysql
   - mysql-connector-c
-  - nanoflann
-  - nlohmann_json
+  - nanoflann=1.3.1
+  - nlohmann_json=3.7.3
   - ninja==1.7.2
   - conda-forge/label/gcc7::nn
   - opencv>=3.0.0,<=4.0.0

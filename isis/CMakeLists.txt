@@ -159,6 +159,7 @@ include(CTest)
 set(thirdPartyCppFlags -Wall
                        -fPIC
                        -std=c++11
+		       -fpermissive
                        -DISIS_LITTLE_ENDIAN=1
                        -Wno-unused-parameter
                        -Wno-overloaded-virtual
@@ -178,7 +179,7 @@ set(thirdPartyCppFlags -Wall
 # Flag to fix numeric literals problem with boost on linux
 # Add gold linker (and therefore, phtread) to speed up linux (spec. Ubuntu18.04) builds
 if(NOT APPLE)
-  set(thirdPartyCppFlags ${thirdPartyCppFlags} -fuse-ld=gold
+  set(thirdPartyCppFlags ${thirdPartyCppFlags} 
 	                                       -pthread
 					       -fext-numeric-literals
                                                -Wl,-rpath,$ENV{CONDA_PREFIX}/lib)
