@@ -703,6 +703,8 @@ namespace Isis {
         band->SetOffset(base());
         band->SetNoDataValue(noDataValue);
         band->Fill(noDataValue);
+        band->CreateMaskBand(GMF_ALPHA);
+        band->GetMaskBand()->Fill(255);
       }
       GDALClose(dataset);
       CSLDestroy( papszOptions );
