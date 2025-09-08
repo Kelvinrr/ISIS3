@@ -252,10 +252,7 @@ namespace Isis {
 
   void Blob::ReadGdal(GDALDataset *dataset) {
     try {
-      std::string key = p_type.toStdString();
-      if (p_blobName != "IsisCube") {
-        key = key + "_" + (p_blobName.toStdString());
-      }
+      std::string key = p_type.toStdString() + "_" + p_blobName.toStdString();
 
       CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
       const char *metadataJsonString = metadata[0];
@@ -486,14 +483,11 @@ namespace Isis {
       }
 
       // update metadata
-      std::string key = this->Type().toStdString();
-      if (p_blobName != "IsisCube") {
-        key = key + "_" + (this->Name().toStdString());
-      }
-      // Should check for metadata
+      std::string key = this->Type().toStdString() + "_" + (this->Name().toStdString());
+
       CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
       ordered_json jsonblob = {};
-      if (metadata) {
+      if (metadata[0] != nullptr) {
         const char *metadataJsonString = metadata[0];
         jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
       }
