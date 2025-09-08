@@ -2929,7 +2929,7 @@ namespace Isis {
       CPLStringList metadata = CPLStringList(gdalDataset()->GetMetadata("json:ISIS3"), false);
 
       std::string jsonblobstr = "";
-      if (metadata) {
+      if (metadata[0] != nullptr) {
         const char *metadataJsonString = metadata[0];
         nlohmann::ordered_json metadataAsJson = nlohmann::ordered_json::parse(metadataJsonString);
         for (auto& [key, val] : jsonOut.items()) {
