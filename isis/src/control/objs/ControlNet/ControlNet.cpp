@@ -309,6 +309,18 @@ namespace Isis {
   void ControlNet::Write(const QString &ptfile, bool pvl) {
     ControlNetVersioner versionedWriter(this);
 
+    // Check if writing to Parquet format
+    if (ptfile.endsWith(".parquet", Qt::CaseInsensitive)) {
+      try {
+        versionedWriter.write(FileName(ptfile));
+      }
+      catch (IException &e) {
+        QString msg = "Failed writing control network to Parquet file [" + ptfile + "]";
+        throw IException(e, IException::Io, msg, _FILEINFO_);
+      }
+      return;
+    }
+
     if (pvl) {
       Pvl network;
       try {

@@ -119,8 +119,8 @@ namespace Isis {
     }
 
     if (p_distortionMap) {
-      delete p_distortionMap;
-      p_distortionMap = NULL;
+      // delete p_distortionMap;
+      // p_distortionMap = NULL;
     }
 
     if (p_focalPlaneMap) {

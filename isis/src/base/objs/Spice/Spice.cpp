@@ -686,7 +686,7 @@ namespace Isis {
    * Destroys the Spice object
    */
   Spice::~Spice() {
-    NaifStatus::CheckErrors();
+    // NaifStatus::CheckErrors();
 
     if (m_solarLongitude != NULL) {
       delete m_solarLongitude;
