@@ -150,6 +150,7 @@ requirements:
   - kalasiris
   - libcxx
   - libopenblas
+  - {{ pin_compatible('libboost', max_pin='x.x') }}
   - {{ pin_compatible('libopencv', max_pin='x.x') }}
   - {{ pin_compatible('libpng') }}
   - libtiff
