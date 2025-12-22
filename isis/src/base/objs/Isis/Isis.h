@@ -12,6 +12,7 @@ find files of those names at the top level of this repository. **/
 #include <signal.h>
 
 #include <QCoreApplication>
+#include <spiceql.h>
 
 #include "Application.h"
 #include "UserInterface.h" // this is an unnecessary include
@@ -96,6 +97,8 @@ int main(int argc, char *argv[]) {
     std::cerr << "Please set ISISROOT before running any Isis applications" << std::endl;
     exit(1);
   }
+
+  SpiceQL::Inventory::setDbFilePath(std::string(getenv("ISISDATA")) + "/base/", true);
 
   Isis::Application::p_applicationForceGuiApp  = false;
 
