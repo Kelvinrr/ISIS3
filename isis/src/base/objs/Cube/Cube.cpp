@@ -2212,6 +2212,24 @@ namespace Isis {
    * @return boolean if it found the blob and deleted it.
    */
   bool Cube::deleteBlob(QString BlobName, QString BlobType) {
+    if (gdalDataset()) {
+      string key = BlobType.toStdString() + "_" + BlobName.toStdString();
+
+      CPLStringList metadata = CPLStringList(gdalDataset()->GetMetadata("json:ISIS3"), false);
+      const char *metadataJsonString = metadata[0];
+      nlohmann::ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
+
+      bool keyErased = jsonblob.erase(key);
+      string jsonblobstr = jsonblob.dump();
+
+      char **outputMetadata = new char*[1];
+      outputMetadata[0] = jsonblobstr.data();
+      gdalDataset()->SetMetadata(outputMetadata, "json:ISIS3");
+      delete []outputMetadata;
+      
+      return keyErased;
+    }
+
     for(int i = 0; i < m_label->objects(); i++) {
       PvlObject obj = m_label->object(i);
       if (obj.name().compare(BlobType) == 0) {
@@ -2278,12 +2296,16 @@ namespace Isis {
   bool Cube::hasBlob(const QString &name, const QString &type) {
     if (gdalDataset()) {
       string key = type.toStdString() + "_" + name.toStdString();
-      const char *jsonblobStr = gdalDataset()->GetMetadataItem(key.c_str(), "USGS");
 
-      if (jsonblobStr) {
-        return true;
+      CPLStringList metadata = CPLStringList(gdalDataset()->GetMetadata("json:ISIS3"), false);
+      const char *metadataJsonString = metadata[0];
+      nlohmann::ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
+
+      if (jsonblob.find(key) == jsonblob.end()) {
+        return false;
       }
-      return false;
+
+      return true;
     }
     
     for(int o = 0; o < label()->objects(); o++) {
