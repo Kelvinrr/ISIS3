@@ -137,7 +137,7 @@ namespace Isis {
     if (metadata[0] != nullptr) {
       const char *metadataJsonString = metadata[0];
       nlohmann::ordered_json metadataAsJson = nlohmann::ordered_json::parse(metadataJsonString);
-      readObject(*m_label, metadataAsJson);
+      readObject(*this, metadataAsJson);
     }
     else {
       // Setup the PVL
