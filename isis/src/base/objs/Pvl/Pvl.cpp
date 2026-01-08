@@ -132,21 +132,12 @@ namespace Isis {
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
 
-    CPLStringList metadata = CPLStringList(dataset->GetMetadata("USGS"), false);
+    CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
 
     if (metadata[0] != nullptr) {
-      for (int i = 0; i < metadata.size(); i++) {
-        const char *metadataItem = CPLParseNameValue(metadata[i], nullptr);
-        nlohmann::ordered_json metadataAsJson = nlohmann::ordered_json::parse(metadataItem);
-        Pvl pvl;
-        Pvl::readObject(pvl, metadataAsJson);
-        for (int i = 0; i < pvl.objects(); i++) {
-          this->addObject(pvl.object(i));
-        }
-        for (int i = 0; i < pvl.groups(); i++) {
-          this->addGroup(pvl.group(i));
-        }
-      }
+      const char *metadataJsonString = metadata[0];
+      nlohmann::ordered_json metadataAsJson = nlohmann::ordered_json::parse(metadataJsonString);
+      readObject(*m_label, metadataAsJson);
     }
     else {
       // Setup the PVL
