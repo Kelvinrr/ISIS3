@@ -106,7 +106,7 @@ TEST_F(ReadWriteTiff, TestBlobWriteReadGdal) {
   writeBlob.setData(buf, 4);
 
   std::string jsonblobstr = "{}";
-  writeBlob.Write(jsonblobstr);
+  writeBlob.WriteGdal(jsonblobstr);
 
   char ** outputMetadata = new char*[1];
   outputMetadata[0] = jsonblobstr.data();

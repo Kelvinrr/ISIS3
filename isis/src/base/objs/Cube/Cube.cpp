@@ -2956,7 +2956,7 @@ namespace Isis {
         Blob &blob = m_blobMap[blobKey];
 
         std::string blobJsonStr = "{}";
-        blob.Write(blobJsonStr);
+        blob.WriteGdal(blobJsonStr);
         nlohmann::ordered_json blobJson = nlohmann::ordered_json::parse(blobJsonStr);
         jsonOut.update(blobJson);
       }
