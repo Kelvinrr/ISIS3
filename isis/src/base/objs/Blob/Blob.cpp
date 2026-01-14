@@ -141,6 +141,16 @@ namespace Isis {
   }
 
   /**
+   * Create a unique key for the blob based on name and type
+   *
+   *  @return @b string The key of the blob.
+   */
+  QString Blob::Key() const {
+    QString key = Type() + "_" + Name();
+    return key;
+  }
+
+  /**
    *  Accessor method that returns the number of bytes in the blob data.
    *
    *  @return @b int Number of bytes in the blob data.
@@ -252,16 +262,17 @@ namespace Isis {
 
   void Blob::ReadGdal(GDALDataset *dataset) {
     try {
-      std::string key = p_type.toStdString() + "_" + p_blobName.toStdString();
+      std::string key = Key().toStdString();
 
-      CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
-      const char *metadataJsonString = metadata[0];
-      ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
+      const char* metadata = dataset->GetMetadataItem(key.c_str(), "json:ISIS3");
 
-      if (jsonblob.find(key) == jsonblob.end()) {
+      if (metadata == nullptr) {
         QString msg = "The key [" + QString::fromStdString(key) + "] does not exist on the geodata set.";
         throw IException(IException::Io, msg, _FILEINFO_);
       }
+      
+      ordered_json jsonblob = {};
+      jsonblob[key] = nlohmann::ordered_json::parse(metadata);
 
       std::string blobData = jsonblob[key]["_data"];
       jsonblob[key].erase("_data");
@@ -453,51 +464,36 @@ namespace Isis {
     p_buffer = buffer;
   }
 
-  void Blob::WriteGdal(GDALDataset *dataset) {
+  void Blob::WriteGdal(std::string &json) {
     try {
-      WriteInit();
-      Pvl pvl;
-      pvl.addObject(p_blobPvl);
-      ostringstream os;
-      os << pvl << endl;
-      os.seekp(0, std::ios::end);
-
       stringstream stream;
       WriteData(stream);
-      PvlObject &blobObj = pvl.findObject(p_type);
 
-      blobObj["Bytes"] = toString(p_nbytes);
-      blobObj["StartByte"] = toString(1);
-      if(blobObj.hasKeyword("_data")) { 
-        blobObj["_data"] = QString::fromStdString(stream.str()); 
+      p_blobPvl["Bytes"] = toString(p_nbytes);
+      p_blobPvl["StartByte"] = toString(1);
+      if(p_blobPvl.hasKeyword("_data")) { 
+        p_blobPvl["_data"] = QString::fromStdString(stream.str()); 
       }
       else { 
-        blobObj += PvlKeyword("_data", QString::fromStdString(stream.str()));
+        p_blobPvl += PvlKeyword("_data", QString::fromStdString(stream.str()));
       }
 
-      if(blobObj.hasKeyword("Name")) { 
-        blobObj["Name"] = p_blobName; 
+      if(p_blobPvl.hasKeyword("Name")) { 
+        p_blobPvl["Name"] = p_blobName; 
       }
       else { 
-        blobObj += PvlKeyword("Name", p_blobName);
+        p_blobPvl += PvlKeyword("Name", p_blobName);
       }
 
       // update metadata
-      std::string key = this->Type().toStdString() + "_" + (this->Name().toStdString());
+      Pvl pvl;
+      pvl.addObject(p_blobPvl);
 
-      CPLStringList metadata = CPLStringList(dataset->GetMetadata("json:ISIS3"), false);
-      ordered_json jsonblob = {};
-      if (metadata[0] != nullptr) {
-        const char *metadataJsonString = metadata[0];
-        jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
-      }
+      std::string key = Key().toStdString();
+
+      ordered_json jsonblob = ordered_json::parse(json);
       jsonblob[key] = pvl.toJson()["Root"][key];
-      string jsonblobstr = jsonblob.dump();
-
-      char **outputMetadata = new char*[1];
-      outputMetadata[0] = jsonblobstr.data();
-      dataset->SetMetadata(outputMetadata, "json:ISIS3");
-      delete []outputMetadata;
+      json = jsonblob.dump();
     }
     catch(exception &e) {
       QString msg = "Failed to write blob [" + p_blobName + "]: " + QString(e.what());
@@ -565,8 +561,7 @@ namespace Isis {
    * @param detachedFileName If the stream is detached from the labels give
    * the name of the file
    */
-  void Blob::Write(Pvl &pvl, std::fstream &stm,
-                   const QString &detachedFileName, bool overwrite, bool inline_data) {
+  void Blob::Write(Pvl &pvl, std::fstream &stm) {
                     
     // Handle 64-bit I/O
     WriteInit();
@@ -574,68 +569,25 @@ namespace Isis {
     streampos sbyte = stm.tellp();
     sbyte += 1;
 
-    // Find out where the end-of-file is
-    stm.seekp(0, std::ios::end);
-    streampos eofbyte = stm.tellp();
-    eofbyte += 1;
-
-    // Handle detached blobs
-    if (detachedFileName != "") {
-      p_blobPvl += PvlKeyword("^" + p_type, detachedFileName);
-    }
-
     p_blobPvl["StartByte"] = toString((BigInt)sbyte);
     p_blobPvl["Bytes"] = toString(p_nbytes);
 
-    // See if the blob is already in the file
     bool found = false;
-    if (overwrite) {
-
-      for (int i = 0; i < pvl.objects(); i++) {
-        if (pvl.object(i).name() == p_blobPvl.name()) {
-          PvlObject &obj = pvl.object(i);
-          if ((QString)obj["Name"] == (QString)p_blobPvl["Name"]) {
-            found = true;
-
-            BigInt oldSbyte = obj["StartByte"];
-            int oldNbytes = (int) obj["Bytes"];
-
-            // Does it fit in the old space
-            if (p_nbytes <= oldNbytes) {
-              p_blobPvl["StartByte"] = obj["StartByte"];
-              sbyte = oldSbyte;
-            }
-
-            // Was the old space at the end of the file
-            else if (((oldSbyte + oldNbytes) == eofbyte) &&
-                    (eofbyte >= sbyte)) {
-              p_blobPvl["StartByte"] = obj["StartByte"];
-              sbyte = oldSbyte;
-            }
-
-            // Put it at the requested position/end of the file
-            else {
-              // Leave this here for clarity
-            }
-
-            obj = p_blobPvl;
-          }
+    for (int i = 0; i < pvl.objects(); i++) {
+      if (pvl.object(i).name() == p_blobPvl.name()) {
+        PvlObject &obj = pvl.object(i);
+        if ((QString)obj["Name"] == (QString)p_blobPvl["Name"]) {
+          found = true;
+          obj["StartByte"] = p_blobPvl["StartByte"];
+          obj["Bytes"] = p_blobPvl["Bytes"];
         }
       }
     }
-
-    // Didn't find the same blob, or don't want to overwrite, so add it to the labels
-    if (!found || !overwrite) {
+    if (!found) {
       pvl.addObject(p_blobPvl);
     }
-
     stm.seekp((BigInt) sbyte - (BigInt)1);
     WriteData(stm);
-
-    // Handle detached blobs
-    if (detachedFileName != "") {
-      p_blobPvl.deleteKeyword("^" + p_type);
-    }
   }
 
   /**

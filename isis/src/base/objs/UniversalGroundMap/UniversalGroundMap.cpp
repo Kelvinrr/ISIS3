@@ -49,7 +49,7 @@ namespace Isis {
         if(priority == CameraFirst)
           p_projection = Isis::ProjectionFactory::CreateFromCube(pvl);
         else
-          p_camera = CameraFactory::Create(cube);
+          p_camera = cube.camera();
       }
       catch (IException &secondError) {
         p_projection = NULL;

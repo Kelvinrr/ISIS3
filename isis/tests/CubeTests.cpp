@@ -15,6 +15,7 @@ using json = nlohmann::json;
 #include "Statistics.h"
 
 #include "CubeFixtures.h"
+#include "CsmFixtures.h"
 #include "TestUtilities.h"
 
 #include "gmock/gmock.h"
@@ -809,11 +810,44 @@ TEST_F(TempTestingFiles, TestCubeAttachLineScanTableFromIsd) {
 
 }
 
-TEST_F(SmallCube, TestCubeHasBlob) {
-  Blob testBlob("TestBlob", "SomeBlob");
-  testCube->write(testBlob);
-  EXPECT_TRUE(testCube->hasBlob("TestBlob", "SomeBlob"));
+TEST_F(CSMCubeFixture, TestCubeHasBlob) {
+  EXPECT_TRUE(testCube->hasBlob("CSMState", "String"));
   EXPECT_FALSE(testCube->hasBlob("SomeOtherTestBlob", "SomeBlob"));
+}
+
+TEST_F(CSMCubeFixture, TestCubeReadBlob) {
+  ASSERT_TRUE(testCube->hasBlob("CSMState", "String"));
+  Blob blob("CSMState", "String");
+  testCube->read(blob);
+  EXPECT_EQ(blob.Size(), 38);
+}
+
+TEST_F(SmallCube, TestCubeWriteBlob) {
+  Blob writeBlob1("UnitTest", "Blob1");
+  char buf[] = {"ABCDE"};
+  writeBlob1.setData(buf, 3);
+
+  testCube->write(writeBlob1);
+  testCube->reopen("rw");
+
+  Blob writeBlob2("UnitTest", "Blob2");
+  writeBlob2.setData(buf, 5);
+  
+  testCube->write(writeBlob2);
+  testCube->reopen("rw");
+
+  writeBlob1.setData(buf, 4);
+  testCube->write(writeBlob1);
+  testCube->reopen("rw");
+
+  EXPECT_TRUE(testCube->hasBlob("UnitTest", "Blob1"));
+}
+
+TEST_F(CSMCubeFixture, TestCubeDeleteBlob) {
+  ASSERT_TRUE(testCube->hasBlob("CSMState", "String"));
+  testCube->deleteBlob("CSMState", "String");
+  testCube->reopen("r");
+  EXPECT_FALSE(testCube->hasBlob("CSMState", "String"));
 }
 
 TEST_F(TempTestingFiles, TestCubeCreateWriteCopy) {

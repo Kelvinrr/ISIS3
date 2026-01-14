@@ -16,6 +16,7 @@ find files of those names at the top level of this repository. **/
 
 #include <nlohmann/json.hpp>
 
+#include "Blob.h"
 #include "Endian.h"
 #include "PixelType.h"
 #include "PvlKeyword.h"
@@ -25,7 +26,6 @@ class QMutex;
 class QString;
 
 namespace Isis {
-  class Blob;
   class Buffer;
   class Camera;
   class CubeAttributeOutput;
@@ -452,6 +452,9 @@ namespace Isis {
 
       //! The label if IsOpen(), otherwise NULL
       Pvl *m_label;
+
+      //!
+      QMap<QString, Blob> m_blobMap;
 
       //! The maximum allowed size of the label; the allocated space.
       int m_labelBytes;

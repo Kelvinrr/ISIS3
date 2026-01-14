@@ -63,6 +63,7 @@ namespace Isis {
 
       QString Type() const;
       QString Name() const;
+      QString Key() const;
       int Size() const;
       PvlObject &Label();
 
@@ -73,9 +74,8 @@ namespace Isis {
       virtual void Read(const Pvl &pvl, std::istream &is,
                         const std::vector<PvlKeyword> keywords = std::vector<PvlKeyword>());
       void Write(const QString &file);
-      void Write(Pvl &pvl, std::fstream &stm,
-                 const QString &detachedFileName = "", bool overwrite=true, bool inline_data=true);
-      void WriteGdal(GDALDataset *dataset);
+      void Write(Pvl &pvl, std::fstream &stm);
+      void WriteGdal(std::string &json);
       void ReadGdal(GDALDataset *dataset);
 
       char *getBuffer();

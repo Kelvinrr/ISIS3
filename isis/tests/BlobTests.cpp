@@ -104,7 +104,15 @@ TEST_F(ReadWriteTiff, TestBlobWriteReadGdal) {
   Blob writeBlob("UnitTest", "Blob");
   char buf[] = {"ABCD"};
   writeBlob.setData(buf, 4);
-  writeBlob.WriteGdal(dataset);
+
+  std::string jsonblobstr = "{}";
+  writeBlob.Write(jsonblobstr);
+
+  char ** outputMetadata = new char*[1];
+  outputMetadata[0] = jsonblobstr.data();
+  std::cout << outputMetadata[0] << std::endl;
+  dataset->SetMetadata(outputMetadata, "json:ISIS3");
+  delete []outputMetadata;
 
   GDALClose(dataset);
   dataset = GDALDataset::FromHandle(GDALOpen(path.toStdString().c_str(), GA_Update));
