@@ -73,7 +73,7 @@ namespace Isis {
       
       // BONUS TODO: update to pull out separate init methods
       // try using ALE
-      bool hasTables = (kernels.hasKeyword("TargetPosition") && !kernels["TargetPosition"].isNull() && kernels["TargetPosition"][0] == "Table");
+      bool hasTables = (kernels["TargetPosition"][0] == "Table"); // (kernels.hasKeyword("TargetPosition") && !kernels["TargetPosition"].isNull() && kernels["TargetPosition"][0] == "Table");
       m_usingNaif = !lab.hasObject("NaifKeywords") || !hasTables;
       m_usingAle = false;
 
