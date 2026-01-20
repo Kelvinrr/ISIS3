@@ -665,9 +665,11 @@ if(buildTests)
 
   if(buildCoverage)
     SET(COVERAGE_COMMAND ctest -j ${PROCESSOR_COUNT} --output-on-failure --timeout 10000 | true)
-    SET(COVERAGE_EXCLUDE ".*/unitTest.cpp" ".*/tests/.*" ".*/moc_.*" "build/.*" "gtest/.*" ".*/qisis/.*" ".*/.*/.*.h")
-    setup_target_for_coverage_gcovr_xml(
-      NAME test_coverage_xml                    # New target name
+    SET(COVERAGE_EXCLUDE ".*/unitTest.cpp" ".*/tests/.*" ".*/moc_.*" "build/.*" "gtest/.*" ".*/qisis/.*" ".*.h" ".*.hpp")
+
+
+    setup_target_for_coverage_gcovr_html(
+      NAME test_coverage_html                    # New target name
       EXECUTABLE ${COVERAGE_COMMAND} # Executable in PROJECT_BINARY_DIR
       DEPENDENCIES runISISTests                   # Dependencies to build first
       BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"        # Base directory for report
@@ -677,8 +679,8 @@ if(buildTests)
       OPTIONS --print-summary
     )
 
-    setup_target_for_coverage_gcovr_html(
-      NAME test_coverage_html                    # New target name
+    setup_target_for_coverage_gcovr_ascii(
+      NAME test_coverage_ascii                    # New target name
       EXECUTABLE ${COVERAGE_COMMAND} # Executable in PROJECT_BINARY_DIR
       DEPENDENCIES runISISTests                   # Dependencies to build first
       BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"        # Base directory for report
