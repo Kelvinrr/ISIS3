@@ -665,8 +665,8 @@ if(buildTests)
 
   if(buildCoverage)
     SET(COVERAGE_COMMAND ctest -j ${PROCESSOR_COUNT} --output-on-failure --timeout 10000 | true)
-    SET(COVERAGE_EXCLUDE ".*/unitTest.cpp" ".*/tests/.*" ".*/moc_.*" "build/.*" "gtest/.*" ".*/qisis/.*" ".*.h" ".*.hpp")
-
+    SET(COVERAGE_EXCLUDE ".*/unitTest.cpp" "tests/.*" ".*/moc_.*" "build/.*" "gtest/.*" ".*/qisis/.*" ".*.h" ".*.hpp" ".*.cc")
+    SET(CODE_COVERAGE_VERBOSE TRUE)
 
     setup_target_for_coverage_gcovr_html(
       NAME test_coverage_html                    # New target name
@@ -687,7 +687,6 @@ if(buildTests)
       NO_DEMANGLE                                 # Don't demangle C++ symbols
                                                   #  even if c++filt is found
       EXCLUDE ${COVERAGE_EXCLUDE}
-      OPTIONS --print-summary
     )
   endif()
 endif()
