@@ -641,7 +641,7 @@ function(setup_target_for_coverage_gcovr_ascii)
     # Run gcovr with -r (root) and --txt to produce ascii table, using the relevant excludes
     add_custom_target(
         ${GCTT_NAME}
-        COMMAND "${GCOVR_PATH}" -r "${CMAKE_SOURCE_DIR}" --txt --gcov-ignore-parse-errors suspicious_hits.warn --object-directory ${CMAKE_BINARY_DIR} ${GCOVR_EXCLUDE_ARGS}
+        COMMAND "${GCOVR_PATH}" -r "${CMAKE_SOURCE_DIR}" --txt-summary --gcov-suspicious-hits-threshold 0 --object-directory ${CMAKE_BINARY_DIR} ${GCOVR_EXCLUDE_ARGS}
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         COMMENT "Generating gcovr ASCII coverage report."
         VERBATIM
