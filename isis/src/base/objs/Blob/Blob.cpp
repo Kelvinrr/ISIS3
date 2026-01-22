@@ -155,6 +155,16 @@ namespace Isis {
    *
    *  @return @b int Number of bytes in the blob data.
    */
+  int Blob::StartByte() const {
+    return p_startByte;
+  }
+
+
+  /**
+   *  Accessor method that returns the number of bytes in the blob data.
+   *
+   *  @return @b int Number of bytes in the blob data.
+   */
   int Blob::Size() const {
     return p_nbytes;
   }
@@ -558,35 +568,29 @@ namespace Isis {
    * Write the blob data out to a Pvl object.
    * @param pvl The pvl object to update
    * @param stm stream to write data to
-   * @param detachedFileName If the stream is detached from the labels give
-   * the name of the file
    */
   void Blob::Write(Pvl &pvl, std::fstream &stm) {
                     
     // Handle 64-bit I/O
     WriteInit();
-    // Find out where they wanted to write the blob
+    // Find out where they want to write the blob
     streampos sbyte = stm.tellp();
-    sbyte += 1;
 
-    p_blobPvl["StartByte"] = toString((BigInt)sbyte);
+    p_blobPvl["StartByte"] = toString((BigInt) sbyte  + 1);
     p_blobPvl["Bytes"] = toString(p_nbytes);
-
     bool found = false;
     for (int i = 0; i < pvl.objects(); i++) {
       if (pvl.object(i).name() == p_blobPvl.name()) {
         PvlObject &obj = pvl.object(i);
         if ((QString)obj["Name"] == (QString)p_blobPvl["Name"]) {
           found = true;
-          obj["StartByte"] = p_blobPvl["StartByte"];
-          obj["Bytes"] = p_blobPvl["Bytes"];
+          obj = p_blobPvl;
         }
       }
     }
     if (!found) {
       pvl.addObject(p_blobPvl);
     }
-    stm.seekp((BigInt) sbyte - (BigInt)1);
     WriteData(stm);
   }
 

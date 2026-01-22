@@ -64,6 +64,7 @@ namespace Isis {
       QString Type() const;
       QString Name() const;
       QString Key() const;
+      int StartByte() const;
       int Size() const;
       PvlObject &Label();
 

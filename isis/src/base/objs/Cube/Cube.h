@@ -455,6 +455,7 @@ namespace Isis {
 
       //!
       QMap<QString, Blob> m_blobMap;
+      QList<QString> m_blobQueue;
 
       //! The maximum allowed size of the label; the allocated space.
       int m_labelBytes;
