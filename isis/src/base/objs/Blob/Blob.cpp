@@ -151,9 +151,9 @@ namespace Isis {
   }
 
   /**
-   *  Accessor method that returns the number of bytes in the blob data.
+   *  Accessor method that returns the start byte of the blob data.
    *
-   *  @return @b int Number of bytes in the blob data.
+   *  @return @b int Start byte of the blob data.
    */
   int Blob::StartByte() const {
     return p_startByte;
@@ -270,6 +270,11 @@ namespace Isis {
     }
   }
 
+  /**
+   *  This method reads a blob from a gdal GDALDataset
+   *
+   *  @param GDALDataset An open gdal dataset 
+   */
   void Blob::ReadGdal(GDALDataset *dataset) {
     try {
       std::string key = Key().toStdString();
@@ -474,6 +479,11 @@ namespace Isis {
     p_buffer = buffer;
   }
 
+  /**
+   * Write the blob out to a json blob
+   *
+   * @param json String to write the json data to
+   */
   void Blob::WriteGdal(std::string &json) {
     try {
       stringstream stream;

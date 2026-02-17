@@ -110,7 +110,6 @@ TEST_F(ReadWriteTiff, TestBlobWriteReadGdal) {
 
   char ** outputMetadata = new char*[1];
   outputMetadata[0] = jsonblobstr.data();
-  std::cout << outputMetadata[0] << std::endl;
   dataset->SetMetadata(outputMetadata, "json:ISIS3");
   delete []outputMetadata;
 

@@ -56,8 +56,8 @@ void IsisMain() {
                                  "SUN_POSITION_TABLE",
                                  "BODY_ROTATION_TABLE"};
   for (QString table : tables) {
-    Table &instrumentPointingTable = p.ImportTable(table);
-    PvlObject &isisTableLabel = instrumentPointingTable.Label();
+    Table &importedTable = p.ImportTable(table);
+    PvlObject &isisTableLabel = importedTable.Label();
     PvlObject pdsTableLabel = pdsLabelPvl.findObject(table);
     addTableKeywords(isisTableLabel, pdsTableLabel);
   }
@@ -122,7 +122,6 @@ void IsisMain() {
     isisCubeObject += alphaCube;
   }
 
-  // addTableKeywords(isisLabel, pdsLabelPvl);
   p.EndProcess();
 }
 
