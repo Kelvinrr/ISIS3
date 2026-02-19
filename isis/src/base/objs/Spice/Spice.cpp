@@ -73,10 +73,10 @@ namespace Isis {
       
       // BONUS TODO: update to pull out separate init methods
       // try using ALE
-      bool hasTables = (kernels["TargetPosition"][0] == "Table"); // (kernels.hasKeyword("TargetPosition") && !kernels["TargetPosition"].isNull() && kernels["TargetPosition"][0] == "Table");
+      bool hasTables = (kernels.hasKeyword("InstrumentPosition") && !kernels["InstrumentPosition"].isNull() && kernels["InstrumentPosition"][0] == "Table");
       m_usingNaif = !lab.hasObject("NaifKeywords") || !hasTables;
       m_usingAle = false;
-
+      
       if (m_usingNaif) {
         try {
           std::ostringstream kernel_pvl;
@@ -86,8 +86,6 @@ namespace Isis {
           if (kernels.hasKeyword("InstrumentPointing") && !kernels["InstrumentPointing"].isNull() && kernels["InstrumentPointing"][0].toUpper() == "NADIR") {
             props["nadir"] = true;
           }
-          props["web"] = true;
-          // props["kernels"] = kernel_pvl.str(); 
 
           json isd = ale::load(lab.fileName().toStdString(), props.dump(), "ale", false, false, true);
           m_usingNaif = false;
@@ -154,15 +152,18 @@ namespace Isis {
     else {
       *m_endTimePadding = 0.0;
     }
-
+  
+    
     try {
       json aleNaifKeywords = isd["naif_keywords"];
       m_naifKeywords = new PvlObject("NaifKeywords", aleNaifKeywords);
 
-      // Still need to load clock kernels for now
-      load(kernels["LeapSecond"], true);
-      if ( kernels.hasKeyword("SpacecraftClock")) {
-        load(kernels["SpacecraftClock"], true);
+      if (!Preference::Preferences().useWebSpice()) {
+        // Still need to load clock kernels for now
+        load(kernels["LeapSecond"], true);
+        if ( kernels.hasKeyword("SpacecraftClock")) {
+          load(kernels["SpacecraftClock"], true);
+        }
       }
     }
     catch(IException &e) {
@@ -170,18 +171,129 @@ namespace Isis {
       throw IException(e, IException::Programmer, msg, _FILEINFO_);
     }
 
+    if (isd.contains("kernels")) {
+      PvlKeyword lkKeyword("LeapSecond");
+      PvlKeyword pckKeyword("TargetAttitudeShape");
+      PvlKeyword targetSpkKeyword("TargetPosition");
+      PvlKeyword ckKeyword("InstrumentPointing");
+      PvlKeyword ikKeyword("Instrument");
+      PvlKeyword sclkKeyword("SpacecraftClock");
+      PvlKeyword spkKeyword("InstrumentPosition");
+      PvlKeyword iakKeyword("InstrumentAddendum");
+      PvlKeyword demKeyword("ShapeModel");
+      PvlKeyword NaifFrameCode("NaifFrameCode"); 
+      PvlKeyword leapSecondKeyword("LeapSecond");
+      PvlKeyword TargetAttitudeShapeKeyword("TargetAttitudeShape");
+      PvlKeyword InstrumentPositionQualityKeyword("InstrumentPositionQuality");
+      PvlKeyword InstrumentPointingQualityKeyword("InstrumentPointingQuality");
+      PvlKeyword SourceKeyword("Source");
+      SourceKeyword.addValue("Ale");
+
+      PvlGroup pvlKernels("Kernels");
+      json kernelsJson = isd["kernels"];
+      int ikCode = isd["instrument_pointing"]["constant_frames"][0].get<int>();
+      
+      NaifFrameCode.addValue(toString(ikCode)); 
+      if (kernelsJson.contains("tspk")) {
+        targetSpkKeyword.addValue("Table");
+        for (const auto &it : kernelsJson["tspk"]) {
+          targetSpkKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+      
+      if(kernelsJson.contains("spk")) {
+        spkKeyword.addValue("Table");
+        for (const auto &it : kernelsJson["spk"]) {
+          spkKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+ 
+      if(kernelsJson.contains("ck")) {
+        ckKeyword.addValue("Table");
+        for (const auto &it : kernelsJson["ck"]) {
+          ckKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+
+      if(kernelsJson.contains("lsk")) {
+        for (const auto &it : kernelsJson["lsk"]) {
+          leapSecondKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+      
+      if(kernelsJson.contains("ik")) {
+        for (const auto &it : kernelsJson["ik"]) {
+          ikKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+ 
+      if(kernelsJson.contains("iak")) {
+        for (const auto &it : kernelsJson["iak"]) {
+          iakKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+     
+      if(kernelsJson.contains("pck")) {
+        for (const auto &it : kernelsJson["pck"]) {
+          TargetAttitudeShapeKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+
+      if(kernelsJson.contains("sclk")) {
+        for (const auto &it : kernelsJson["sclk"]) {
+          sclkKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+
+      // force ellisoid, caller should add a shapemodel
+      // demKeyword.addValue("Null"); 
+      // Look for a kernel keyword called "*_ck_quality" and process it if present
+      for (auto it = kernelsJson.begin(); it != kernelsJson.end(); ++it) {
+        std::string key = it.key();
+        size_t ckPos = key.find("_ck_quality");
+        size_t spkPos = key.find("_spk_quality");
+
+        if (ckPos && ckPos != std::string::npos && !pvlKernels.hasKeyword("InstrumentPointingQuality")) {
+          PvlKeyword perKernelCkQuality("InstrumentPointingQuality");
+          perKernelCkQuality.addValue(it.value().get<std::string>().c_str());
+          pvlKernels.addKeyword(perKernelCkQuality, Pvl::Replace);
+        }
+        if (spkPos && spkPos != std::string::npos && !pvlKernels.hasKeyword("InstrumentPositionQuality")) {
+            PvlKeyword perKernelSpkQuality("InstrumentPositionQuality");
+            perKernelSpkQuality.addValue(it.value().get<std::string>().c_str());
+            pvlKernels.addKeyword(perKernelSpkQuality, Pvl::Replace);
+        }
+      }
+
+      pvlKernels.addKeyword(lkKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(pckKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(targetSpkKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(ckKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(ikKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(sclkKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(spkKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(iakKeyword, Pvl::Replace);
+      // pvlKernels.addKeyword(demKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(NaifFrameCode, Pvl::Replace);
+      pvlKernels.addKeyword(leapSecondKeyword, Pvl::Replace);
+      pvlKernels.addKeyword(TargetAttitudeShapeKeyword, Pvl::Replace);
+      PvlObject &originalObject = lab.findObject("IsisCube");
+      originalObject.deleteGroup("Kernels");
+      originalObject.addGroup(pvlKernels);
+    }
+    
     // Moved the construction of the Target after the NAIF kenels have been loaded or the
     // NAIF keywords have been pulled from the cube labels, so we can find target body codes
     // that are defined in kernels and not just body codes build into spicelib
     // TODO: Move this below the else once the rings code below has been refactored
     m_target = new Target(this, lab);
-
     // This should not be here. Consider having spiceinit add the necessary rings kernels to the
     // Extra parameter if the user has set the shape model to RingPlane.
     // If Target is Saturn and ShapeModel is RingPlane, load the extra rings pck file
     //  which changes the prime meridian values to report longitudes with respect to
     // the ascending node of the ringplane.
     if (m_target->name().toUpper() == "SATURN" && m_target->shape()->name().toUpper() == "PLANE") {
+      // TODO: circumvent this when using SpiceQL 
       PvlKeyword ringPck = PvlKeyword("RingPCK","$cassini/kernels/pck/saturnRings_v001.tpc");
       load(ringPck, true);
     }
@@ -429,6 +541,7 @@ namespace Isis {
     m_spkBodyCode = new SpiceInt;
     m_bodyFrameCode = new SpiceInt;
 
+    m_mission_name = (QString)lab.findGroup("Instrument", Pvl::Traverse).findKeyword("SpacecraftName");
     m_naifKeywords = new PvlObject("NaifKeywords");
     // m_sky = false;
 
@@ -613,7 +726,6 @@ namespace Isis {
     }
 
     m_instrumentRotation = new SpiceRotation(*m_ckCode);
-
     //  Set up for observer/target and light time correction to between s/c
     // and target body.
     LightTimeCorrectionState ltState(*m_ikCode, this);
@@ -667,10 +779,10 @@ namespace Isis {
       m_instrumentRotation = new SpiceRotation(*m_ikCode, *m_spkBodyCode);
     }
     else if (kernels["InstrumentPointing"][0].toUpper() == "TABLE") {
+
       Table t = cube.readTable("InstrumentPointing");
       m_instrumentRotation->LoadCache(t);
     }
-
 
     if (kernels["InstrumentPosition"].size() == 0) {
       throw IException(IException::Unknown,
@@ -682,7 +794,6 @@ namespace Isis {
       Table t = cube.readTable("InstrumentPosition");
       m_instrumentPosition->LoadCache(t);
     }
-
     NaifStatus::CheckErrors();
   }
 
@@ -861,7 +972,6 @@ namespace Isis {
   void Spice::createCache(iTime startTime, iTime endTime,
       int cacheSize, double tol) {
     NaifStatus::CheckErrors();
-
     // Check for errors
     if (cacheSize <= 0) {
       QString msg = "Argument cacheSize must be greater than zero";
@@ -997,7 +1107,6 @@ namespace Isis {
    *                                        SetEphemerisTime()
    */
   void Spice::setTime(const iTime &et) {
-
     if (m_et == NULL) {
       m_et = new iTime();
 
@@ -1280,13 +1389,15 @@ namespace Isis {
     QVariant storedClockTime = getStoredResult(key, SpiceDoubleType);
 
     if (storedClockTime.isNull()) {
+      
       bool useWeb = Preference::Preferences().useWebSpice();
       SpiceDouble timeOutput;
+      string spqlMissionName = SpiceQL::getSpiceqlName(m_mission_name.toStdString());
       if (clockTicks) {
-        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), m_mission_name.toStdString(), useWeb).first;
+        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), spqlMissionName, useWeb).first;
       }
       else {
-        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), m_mission_name.toStdString(), useWeb).first;
+        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), spqlMissionName, useWeb).first;
       }
       storedClockTime = timeOutput;
       storeResult(key, SpiceDoubleType, timeOutput);

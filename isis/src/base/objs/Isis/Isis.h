@@ -99,8 +99,12 @@ int main(int argc, char *argv[]) {
   }
 
   Isis::Application::p_applicationForceGuiApp  = false;
-  SpiceQL::Inventory::setDbFilePath(std::string(getenv("ISISDATA")) + "/base/", true);
+  if (getenv("ISISDATA") != NULL && QString(getenv("ISISDATA")) != "") {
+    SpiceQL::Inventory::setDbFilePath(std::string(getenv("ISISDATA")) + "/base/", true);
+  }
+  
 
+  SpiceQL::addAliasKey("Mars_Reconnaissance_Orbiter", "MRO");
 #ifdef USE_GUI_QAPP
   Isis::Application::p_applicationForceGuiApp = true;
 #endif

@@ -156,7 +156,8 @@ namespace Isis {
   }
 
   bool Preference::useWebSpice() {
-    return checkIfPrefEquals("WebSpice", "UseWebSpice", "true", false);
+    bool useWeb = checkIfPrefEquals("SpiceQL", "UseSpiceQL", "true", false);
+    return useWeb;
   }
 
   void Preference::Shutdown() {

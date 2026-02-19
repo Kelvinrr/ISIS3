@@ -1724,14 +1724,12 @@ namespace Isis {
       ckTable.Label()["Kernels"].addValue(ckKeyword[i]);
 
     this->write(ckTable);
-
     Table spkTable = spice.instrumentPosition()->Cache("InstrumentPosition");
     spkTable.Label() += PvlKeyword("Kernels");
     for (int i = 0; i < spkKeyword.size(); i++)
       spkTable.Label()["Kernels"].addValue(spkKeyword[i]);
 
     this->write(spkTable);
-
     Table bodyTable = spice.bodyRotation()->Cache("BodyRotation");
     bodyTable.Label() += PvlKeyword("Kernels");
     for (int i = 0; i < targetSpkKeyword.size(); i++)
@@ -1743,7 +1741,6 @@ namespace Isis {
     bodyTable.Label() += PvlKeyword("SolarLongitude",
         toString(spice.solarLongitude().degrees()));
     this->write(bodyTable);
-
     Table sunTable = spice.sunPosition()->Cache("SunPosition");
     sunTable.Label() += PvlKeyword("Kernels");
     for (int i = 0; i < targetSpkKeyword.size(); i++)

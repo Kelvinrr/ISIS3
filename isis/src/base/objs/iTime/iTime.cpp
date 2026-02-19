@@ -69,9 +69,22 @@ namespace Isis {
   void iTime::operator=(const char *time) {
     // Convert the time string to a double ephemeris time
     bool useWeb = Preference::Preferences().useWebSpice();
-    p_et = SpiceQL::utcToEt(time, useWeb).first;
-  }
+    if (useWeb) { 
+      p_et = SpiceQL::utcToEt(time, useWeb).first;
+    }
+    else {
+      LoadLeapSecondKernel();
 
+      NaifStatus::CheckErrors();
+      // Convert the time string to a double ephemeris time
+      SpiceDouble et;
+      str2et_c(time, &et);
+  
+      p_et = et;
+      NaifStatus::CheckErrors();  
+    }
+ 
+  }
 
   // Overload of "=" with a double
   void iTime::operator=(const double time) {

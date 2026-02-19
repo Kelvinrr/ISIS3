@@ -22,7 +22,10 @@
 #include "Table.h"
 #include "UserInterface.h"
 #include "spiceinit.h"
+#include <ale/Load.h>
+#include <nlohmann/json.hpp>
 
+using json = nlohmann::json;
 using namespace std;
 
 namespace Isis {
@@ -110,6 +113,16 @@ namespace Isis {
 
     if (ui.GetBoolean("WEB")) {
       requestSpice(icube, ui, log, *icube->label(), mission);
+    }
+    else if (Preference::Preferences().useWebSpice()) {
+      json props;
+      props["web"] = true;
+      props["attach_kernels"] = true;
+
+      json isd = ale::load(icube->fileName().toStdString(), props.dump(), "ale", false, false, true);
+      icube->attachSpiceFromIsd(isd);
+      Application::Log(icube->group("Kernels")); 
+
     }
     else {
       // Get system base kernels
