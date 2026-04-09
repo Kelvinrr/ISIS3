@@ -707,7 +707,6 @@ namespace Isis {
       }
     }
     catch(IException &e) {
-      std::cout << e.what() << std::endl;
       icube->putGroup(originalKernels);
       return false;
     }
