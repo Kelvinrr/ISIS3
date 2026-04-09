@@ -42,7 +42,8 @@ namespace Isis {
    *             Example:"2000/12/31 23:59:01.6789" or "2000-12-31T23:59:01.6789"
    */
   iTime::iTime(const QString &time) {
-    // Convert the time string to a double ephemeris time
+    LoadLeapSecondKernel();
+
     // Convert the time string to a double ephemeris time
     bool useWeb = Preference::Preferences().useWebSpice();
     p_et = SpiceQL::utcToEt(time.toLatin1().data(), useWeb).first;
@@ -60,6 +61,8 @@ namespace Isis {
    *             Example:"2000/12/31 23:59:01.6789" or "2000-12-31T23:59:01.6789"
    */
   void iTime::operator=(const QString &time) {
+    LoadLeapSecondKernel();
+
     // Convert the time string to a double ephemeris time
     bool useWeb = Preference::Preferences().useWebSpice();
     p_et = SpiceQL::utcToEt(time.toLatin1().data(), useWeb).first;
@@ -67,27 +70,16 @@ namespace Isis {
 
   // Overload of "=" with a c string
   void iTime::operator=(const char *time) {
+    LoadLeapSecondKernel();
+
     // Convert the time string to a double ephemeris time
     bool useWeb = Preference::Preferences().useWebSpice();
-    if (useWeb) { 
-      p_et = SpiceQL::utcToEt(time, useWeb).first;
-    }
-    else {
-      LoadLeapSecondKernel();
-
-      NaifStatus::CheckErrors();
-      // Convert the time string to a double ephemeris time
-      SpiceDouble et;
-      str2et_c(time, &et);
-  
-      p_et = et;
-      NaifStatus::CheckErrors();  
-    }
- 
+    p_et = SpiceQL::utcToEt(time, useWeb).first; 
   }
 
   // Overload of "=" with a double
   void iTime::operator=(const double time) {
+    LoadLeapSecondKernel();
     p_et = time;
   }
 
@@ -372,7 +364,7 @@ namespace Isis {
    */
   QString iTime::UTC(int precision) const {
     bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 4, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", precision, useWeb).first;
     return utc.c_str();
   }
 
@@ -408,6 +400,9 @@ namespace Isis {
       utcString = dateString + "T" + timeString;
     }
 
+    NaifStatus::CheckErrors();
+    LoadLeapSecondKernel();
+
     double et;
     bool useWeb = Preference::Preferences().useWebSpice();
     et = SpiceQL::utcToEt(utcString.toLatin1().data(), useWeb).first;
@@ -426,8 +421,8 @@ namespace Isis {
     // kernel is loaded only once and left open.
     if(p_lpInitialized) return;
 
-    Isis::PvlGroup &spqlWeb= Isis::Preference::Preferences().findGroup("WebSpice");
-    if (spqlWeb.hasKeyword("UseWebSpice") && (QString)spqlWeb["UseWebSpice"] == "true") {
+    bool useWeb = Preference::Preferences().useWebSpice();
+    if (useWeb) {
       // dont do anything
       return;
     }

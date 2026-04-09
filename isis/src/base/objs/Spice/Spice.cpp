@@ -73,7 +73,10 @@ namespace Isis {
       
       // BONUS TODO: update to pull out separate init methods
       // try using ALE
-      bool hasTables = (kernels.hasKeyword("InstrumentPosition") && !kernels["InstrumentPosition"].isNull() && kernels["InstrumentPosition"][0] == "Table");
+      bool hasTables = false;
+      if (kernels.hasKeyword("TargetPosition")) {
+        hasTables = (kernels["TargetPosition"][0] == "Table");
+      }
       m_usingNaif = !lab.hasObject("NaifKeywords") || !hasTables;
       m_usingAle = false;
       
@@ -83,8 +86,18 @@ namespace Isis {
           kernel_pvl << kernels;
 
           json props;
-          if (kernels.hasKeyword("InstrumentPointing") && !kernels["InstrumentPointing"].isNull() && kernels["InstrumentPointing"][0].toUpper() == "NADIR") {
-            props["nadir"] = true;
+          if (kernels.hasKeyword("InstrumentPointing")) {
+            if (kernels["InstrumentPointing"][0].toUpper() == "NADIR") {
+              props["nadir"] = true;
+            }
+          }
+
+          if (!Preference::Preferences().useWebSpice()) {
+            props["kernels"] = kernel_pvl.str();
+          }
+          else {
+            props["web"] = true;
+            // props["attach_kernels"] = true;
           }
 
           json isd = ale::load(lab.fileName().toStdString(), props.dump(), "ale", false, false, true);
@@ -135,7 +148,7 @@ namespace Isis {
     m_naifKeywords = new PvlObject("NaifKeywords");
     
     // Get the kernel group and load main kernels
-    PvlGroup kernels = lab.findGroup("Kernels", Pvl::Traverse);
+    PvlGroup &kernels = lab.findGroup("Kernels", Pvl::Traverse);
     m_mission_name = (QString)lab.findGroup("Instrument", Pvl::Traverse).findKeyword("SpacecraftName");
 
     // Get the time padding first
@@ -171,7 +184,7 @@ namespace Isis {
       throw IException(e, IException::Programmer, msg, _FILEINFO_);
     }
 
-    if (isd.contains("kernels")) {
+    if (Preference::Preferences().useWebSpice() && isd.contains("kernels")) {
       PvlKeyword lkKeyword("LeapSecond");
       PvlKeyword pckKeyword("TargetAttitudeShape");
       PvlKeyword targetSpkKeyword("TargetPosition");
@@ -180,44 +193,41 @@ namespace Isis {
       PvlKeyword sclkKeyword("SpacecraftClock");
       PvlKeyword spkKeyword("InstrumentPosition");
       PvlKeyword iakKeyword("InstrumentAddendum");
-      PvlKeyword demKeyword("ShapeModel");
       PvlKeyword NaifFrameCode("NaifFrameCode"); 
-      PvlKeyword leapSecondKeyword("LeapSecond");
-      PvlKeyword TargetAttitudeShapeKeyword("TargetAttitudeShape");
       PvlKeyword InstrumentPositionQualityKeyword("InstrumentPositionQuality");
       PvlKeyword InstrumentPointingQualityKeyword("InstrumentPointingQuality");
-      PvlKeyword SourceKeyword("Source");
-      SourceKeyword.addValue("Ale");
 
-      PvlGroup pvlKernels("Kernels");
       json kernelsJson = isd["kernels"];
       int ikCode = isd["instrument_pointing"]["constant_frames"][0].get<int>();
       
       NaifFrameCode.addValue(toString(ikCode)); 
       if (kernelsJson.contains("tspk")) {
-        targetSpkKeyword.addValue("Table");
         for (const auto &it : kernelsJson["tspk"]) {
           targetSpkKeyword.addValue(("$"+it.get<string>()).c_str());
         }
       }
       
       if(kernelsJson.contains("spk")) {
-        spkKeyword.addValue("Table");
         for (const auto &it : kernelsJson["spk"]) {
           spkKeyword.addValue(("$"+it.get<string>()).c_str());
         }
       }
  
       if(kernelsJson.contains("ck")) {
-        ckKeyword.addValue("Table");
         for (const auto &it : kernelsJson["ck"]) {
+          ckKeyword.addValue(("$"+it.get<string>()).c_str());
+        }
+      }
+
+      if(kernelsJson.contains("fk")) {
+        for (const auto &it : kernelsJson["fk"]) {
           ckKeyword.addValue(("$"+it.get<string>()).c_str());
         }
       }
 
       if(kernelsJson.contains("lsk")) {
         for (const auto &it : kernelsJson["lsk"]) {
-          leapSecondKeyword.addValue(("$"+it.get<string>()).c_str());
+          lkKeyword.addValue(("$"+it.get<string>()).c_str());
         }
       }
       
@@ -235,7 +245,7 @@ namespace Isis {
      
       if(kernelsJson.contains("pck")) {
         for (const auto &it : kernelsJson["pck"]) {
-          TargetAttitudeShapeKeyword.addValue(("$"+it.get<string>()).c_str());
+          pckKeyword.addValue(("$"+it.get<string>()).c_str());
         }
       }
 
@@ -245,43 +255,38 @@ namespace Isis {
         }
       }
 
-      // force ellisoid, caller should add a shapemodel
-      // demKeyword.addValue("Null"); 
+      kernels.addKeyword(lkKeyword, Pvl::Replace);
+      kernels.addKeyword(pckKeyword, Pvl::Replace);
+      kernels.addKeyword(targetSpkKeyword, Pvl::Replace);
+      kernels.addKeyword(ckKeyword, Pvl::Replace);
+      kernels.addKeyword(ikKeyword, Pvl::Replace);
+      kernels.addKeyword(sclkKeyword, Pvl::Replace);
+      kernels.addKeyword(spkKeyword, Pvl::Replace);
+      kernels.addKeyword(iakKeyword, Pvl::Replace);
+      kernels.addKeyword(NaifFrameCode, Pvl::Replace);
+
       // Look for a kernel keyword called "*_ck_quality" and process it if present
       for (auto it = kernelsJson.begin(); it != kernelsJson.end(); ++it) {
         std::string key = it.key();
-        size_t ckPos = key.find("_ck_quality");
-        size_t spkPos = key.find("_spk_quality");
 
-        if (ckPos && ckPos != std::string::npos && !pvlKernels.hasKeyword("InstrumentPointingQuality")) {
-          PvlKeyword perKernelCkQuality("InstrumentPointingQuality");
-          perKernelCkQuality.addValue(it.value().get<std::string>().c_str());
-          pvlKernels.addKeyword(perKernelCkQuality, Pvl::Replace);
+        size_t spkPos = key.find("_spk_quality");
+        if (spkPos && spkPos != std::string::npos) {
+          std::string quality = it.value().get<std::string>();
+          quality[0] = std::toupper(quality[0]);
+          InstrumentPositionQualityKeyword.addValue(quality.c_str());
         }
-        if (spkPos && spkPos != std::string::npos && !pvlKernels.hasKeyword("InstrumentPositionQuality")) {
-            PvlKeyword perKernelSpkQuality("InstrumentPositionQuality");
-            perKernelSpkQuality.addValue(it.value().get<std::string>().c_str());
-            pvlKernels.addKeyword(perKernelSpkQuality, Pvl::Replace);
+
+        size_t ckPos = key.find("_ck_quality");
+        if (ckPos && ckPos != std::string::npos) {
+          std::string quality = it.value().get<std::string>();
+          quality[0] = std::toupper(quality[0]);
+          InstrumentPointingQualityKeyword.addValue(quality.c_str());
         }
       }
 
-      pvlKernels.addKeyword(lkKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(pckKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(targetSpkKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(ckKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(ikKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(sclkKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(spkKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(iakKeyword, Pvl::Replace);
-      // pvlKernels.addKeyword(demKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(NaifFrameCode, Pvl::Replace);
-      pvlKernels.addKeyword(leapSecondKeyword, Pvl::Replace);
-      pvlKernels.addKeyword(TargetAttitudeShapeKeyword, Pvl::Replace);
-      PvlObject &originalObject = lab.findObject("IsisCube");
-      originalObject.deleteGroup("Kernels");
-      originalObject.addGroup(pvlKernels);
+      kernels.addKeyword(InstrumentPositionQualityKeyword, Pvl::Replace);
+      kernels.addKeyword(InstrumentPointingQualityKeyword, Pvl::Replace);
     }
-    
     // Moved the construction of the Target after the NAIF kenels have been loaded or the
     // NAIF keywords have been pulled from the cube labels, so we can find target body codes
     // that are defined in kernels and not just body codes build into spicelib
