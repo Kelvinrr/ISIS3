@@ -58,8 +58,6 @@ namespace Isis {
     //     the value in DELTAT00.
     double offset = 0.125;
     m_etStart = getClockTime(stime).Et() + offset;
-    SpiceChar utc[30];
-    et2utc_c(m_etStart, "ISOC", 3, 30, utc);
 //  qDebug()<<"\n\nspacecraftClockStartCount + "<<offset<<" (offset) = "<<utc;
 
     // If bands have been extracted from the original image then we
@@ -126,8 +124,6 @@ namespace Isis {
     iTime time(m_utcTime[vband-1]);
     double et = time.Et();
 
-    SpiceChar utc[30];
-    et2utc_c(et, "ISOC", 3, 30, utc);
     Camera::setTime(et);
     pair<iTime, iTime> shuttertimes = ShutterOpenCloseTimes(et, m_exposure);
 
