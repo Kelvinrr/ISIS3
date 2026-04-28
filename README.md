@@ -46,24 +46,9 @@ See this repo's [discussion page](https://github.com/DOI-USGS/ISIS3/discussions?
 
 ## Citing ISIS
 
-If you use ISIS in your research, please cite the specific version you used:
+If you use ISIS in your research, please cite the specific version you used. 
 
-**BibTeX Format:**
-```bibtex
-@software{ISIS1000,
-  author = {{USGS Astrogeology Science Center}},
-  title = {{Integrated Software for Imagers and Spectrometers (ISIS) version 10.0.0}},
-  year = {2026},
-  publisher = {{U.S. Geological Survey}},
-  version = {10.0.0},
-  doi = {10.5066/P13TADS5},
-  url = {{https://doi.org/10.5066/P13TADS5}}
-}
-```
-
-### Citing Previous Versions
-
-To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release has a "Cite this repository" button with version-specific citation formats.
+To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release after 10.0.0 [has a "Cite this repository" button](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files) with version-specific citation formats.
 
 ### Machine-Readable Citation
 
