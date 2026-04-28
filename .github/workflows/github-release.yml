@@ -177,3 +177,63 @@ jobs:
       - name: Upload updated versions.json to S3
         run: |
           aws s3 cp ./versions.json s3://asc-public-docs/isis-site/versions.json
+
+  update-citation:
+    name: Update Citation Files
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    if: github.event_name == 'release' && github.event.action == 'released'
+    env:
+      ISIS_VERSION: ${{ needs.build.outputs.isis_version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install PyYAML
+
+      - name: Fetch release and extract DOI
+        id: doi
+        run: |
+          # Fetch release page HTML and extract DOI
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ env.ISIS_VERSION }}"
+
+          # Look for DOI pattern (10.XXXX/XXXXXX)
+          DOI=$(curl -sL "$RELEASE_URL" | grep -oP '10\.\d+/[A-Z0-9]+' | head -1)
+
+          if [ -z "$DOI" ]; then
+            echo "No DOI found on release page, skipping citation update"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "doi=$DOI" >> $GITHUB_OUTPUT
+            echo "Found DOI: $DOI"
+          fi
+
+      - name: Generate citation files
+        if: steps.doi.outputs.skip != 'true'
+        run: |
+          python isis/scripts/generate_citation.py \
+            --version ${{ env.ISIS_VERSION }} \
+            --doi ${{ steps.doi.outputs.doi }}
+
+      - name: Commit citation files
+        if: steps.doi.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CITATION.cff README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update citation for ISIS ${{ env.ISIS_VERSION }} (DOI: ${{ steps.doi.outputs.doi }})"
+            git push origin HEAD:main
+            echo "✓ Citation files committed to main branch"
+          fi
