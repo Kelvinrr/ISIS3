@@ -1,9 +1,9 @@
 cff-version: 1.2.0
 message: If you use ISIS in your research, please cite it as below.
 title: Integrated Software for Imagers and Spectrometers (ISIS)
-version: test3
-date-released: '2026-04-29'
-doi: 10.5066/TEST1234
+version: dev
+date-released: '2011-12-15'
+doi: 10.5066/P145STNF
 repository-code: https://github.com/DOI-USGS/ISIS3
 url: https://isis.astrogeology.usgs.gov
 license: CC0-1.0
