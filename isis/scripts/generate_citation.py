@@ -106,13 +106,19 @@ If you use ISIS in your research, please cite the specific version you used:
 {self.generate_bibtex()}
 ```
 
+**ISIS DEV DOI BADGE**
+
+[![ISIS DEV DOI](https://img.shields.io/badge/DOI-10.5066/P145STNF-blue.svg)](https://doi.org/10.5066/P145STNF)
+
+Use ["Cite this repository"](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files) button on dev branch for citation information. 
+
 **DOI Badge:**
 
 [![DOI](https://img.shields.io/badge/DOI-{self.doi}-blue.svg)](https://doi.org/{self.doi})
 
 ### Citing Previous Versions
 
-To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release has a "Cite this repository" button with version-specific citation formats.
+To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release has a ["Cite this repository"](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files) button with version-specific citation formats.
 
 ### Machine-Readable Citation
 

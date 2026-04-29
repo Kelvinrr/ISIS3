@@ -6,7 +6,7 @@
 
 [![Anaconda-Server Badge](https://anaconda.org/usgs-astrogeology/isis3/badges/version.svg)](https://anaconda.org/usgs-astrogeology/isis3)
 [![Anaconda-Server Badge](https://anaconda.org/usgs-astrogeology/isis/badges/version.svg)](https://anaconda.org/usgs-astrogeology/isis)
-[![Badge for DOI 10.5066/P13TADS5](https://img.shields.io/badge/DOI-10.5066%2FP13TADS5-blue)](https://doi.org/10.5066/P13TADS5)
+
 
 ## Quick Reference
 
@@ -48,7 +48,7 @@ See this repo's [discussion page](https://github.com/DOI-USGS/ISIS3/discussions?
 
 If you use ISIS in your research, please cite the specific version you used:
 
-### Latest Release (ISIS test3)
+### Latest Release 
 
 **APA Format:**
 ```
@@ -68,13 +68,21 @@ USGS Astrogeology Science Center. (2026). Integrated Software for Imagers and Sp
 }
 ```
 
+**ISIS DEV DOI BADGE**
+
+[![ISIS DEV DOI](https://img.shields.io/badge/DOI-10.5066/P145STNF-blue.svg)](https://doi.org/10.5066/P145STNF)
+
+Use "Cite this repository" button on dev branch for citation information. 
+
 **DOI Badge:**
 
-[![DOI](https://img.shields.io/badge/DOI-10.5066/TEST1234-blue.svg)](https://doi.org/10.5066/TEST1234)
+[![Badge for DOI 10.5066/P14RZST9](https://img.shields.io/badge/DOI-10.5066%2FP14RZST9-blue)](https://doi.org/10.5066/P14RZST9)
 
 ### Citing Previous Versions
 
-To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release has a "Cite this repository" button with version-specific citation formats.
+To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release starting with 10.0.0 has a "Cite this repository" button with version-specific citation formats.
+
+Pre-10.0.0 have DOIs in their release page which can be used to generate a citation.
 
 ### Machine-Readable Citation
 
