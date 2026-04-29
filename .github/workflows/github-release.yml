@@ -251,6 +251,6 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Update citation for ISIS ${{ env.ISIS_VERSION }} (DOI: ${{ steps.doi.outputs.doi }})"
-            git push origin HEAD:main
-            echo "✓ Citation files committed to main branch"
+            git push origin HEAD:${{ github.event.release.target_commitish || github.ref_name }}
+            echo "✓ Citation files committed to ${{ github.event.release.target_commitish || github.ref_name }} branch"
           fi
