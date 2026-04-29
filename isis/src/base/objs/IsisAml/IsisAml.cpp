@@ -2625,7 +2625,7 @@ void IsisAml::VerifyAll() {
         try {
           paramOneSet = WasEntered(param->name);
           if (param->type == "boolean") {
-            paramOneSet = GetBoolean(param->name);
+            paramOneSet = WasEntered(param->name) && GetBoolean(param->name);
           }
         }
         catch (Isis::IException &e) {}
@@ -2635,7 +2635,7 @@ void IsisAml::VerifyAll() {
         try {
           paramTwoSet = WasEntered(param2->name);
           if (param2->type == "boolean") {
-            paramTwoSet = GetBoolean(param2->name);
+            paramTwoSet = WasEntered(param2->name) && GetBoolean(param2->name);
           }
         }
         catch (Isis::IException &e) {}
