@@ -46,14 +46,43 @@ See this repo's [discussion page](https://github.com/DOI-USGS/ISIS3/discussions?
 
 ## Citing ISIS
 
-If you use ISIS in your research, please cite the specific version you used. 
+If you use ISIS in your research, please cite the specific version you used:
 
-To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release after 10.0.0 [has a "Cite this repository" button](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-citation-files) with version-specific citation formats.
+### Latest Release (ISIS test3)
+
+**APA Format:**
+```
+USGS Astrogeology Science Center. (2026). Integrated Software for Imagers and Spectrometers (ISIS) (Version test3) [Computer software]. U.S. Geological Survey. https://doi.org/10.5066/TEST1234
+```
+
+**BibTeX Format:**
+```bibtex
+@software{ISIStest3,
+  author = {{USGS Astrogeology Science Center}},
+  title = {{Integrated Software for Imagers and Spectrometers (ISIS) version test3}},
+  year = {2026},
+  publisher = {{U.S. Geological Survey}},
+  version = {test3},
+  doi = {10.5066/TEST1234},
+  url = {{https://doi.org/10.5066/TEST1234}}
+}
+```
+
+**DOI Badge:**
+
+[![DOI](https://img.shields.io/badge/DOI-10.5066/TEST1234-blue.svg)](https://doi.org/10.5066/TEST1234)
+
+### Citing Previous Versions
+
+To cite a specific earlier version, visit our [GitHub Releases](https://github.com/DOI-USGS/ISIS3/releases) page and click on the version you used. Each release has a "Cite this repository" button with version-specific citation formats.
 
 ### Machine-Readable Citation
 
 For automated citation tools, see our [CITATION.cff](CITATION.cff) file. This file is automatically recognized by GitHub, Zotero, and other citation managers.
 
+### Questions?
+
+If you have questions about citing ISIS, please [open an issue](https://github.com/DOI-USGS/ISIS3/issues/new).
 ## System Requirements
 
 ISIS is supported on these UNIX variants (and may work on others, though unsupported):
