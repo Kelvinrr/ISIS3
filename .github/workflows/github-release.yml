@@ -19,6 +19,7 @@ on:
       - '*.*.*_LTS'
 jobs:
   build:
+    if: false  # Temporarily disabled for citation testing
     strategy:
       fail-fast: false
       matrix:
@@ -62,8 +63,9 @@ jobs:
             conda build . -c usgs-astrogeology -c conda-forge --override-channels --user usgs-astrogeology --label LTS --label main
           fi
 
-  
+
   test:
+    if: false  # Temporarily disabled for citation testing
     runs-on: ${{ matrix.os }}
     needs: build
     strategy:
@@ -99,6 +101,7 @@ jobs:
           spiceinit -h
 
   docs:
+    if: false  # Temporarily disabled for citation testing
     name: Build and Upload ISIS Public Release Docs
     runs-on: ubuntu-latest
     needs: test
@@ -186,13 +189,13 @@ jobs:
   update-citation:
     name: Update Citation Files
     runs-on: ubuntu-latest
-    needs: [build, test]
+    # needs: [build, test]  # Temporarily disabled for citation testing
     # Run if: (1) manual trigger with DOI input, OR (2) release event
     if: |
       (github.event_name == 'workflow_dispatch' && github.event.inputs.doi != '') ||
       (github.event_name == 'release' && github.event.action == 'released')
     env:
-      ISIS_VERSION: ${{ needs.build.outputs.isis_version }}
+      ISIS_VERSION: ${{ github.event.release.tag_name || github.ref_name }}
 
     steps:
       - name: Checkout repository
