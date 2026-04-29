@@ -102,15 +102,15 @@ jobs:
 
   docs:
     if: false  # Temporarily disabled for citation testing
+    # if: |  # Original condition - restore after testing
+    #   success() &&
+    #   !contains(needs.build.outputs.isis_version, '_RC') &&
+    #   !contains(needs.build.outputs.isis_version, '_LTS')
     name: Build and Upload ISIS Public Release Docs
     runs-on: ubuntu-latest
     needs: test
     env:
       ISIS_VERSION: ${{ needs.build.outputs.isis_version }}
-    if: |
-      success() &&
-      !contains(needs.build.outputs.isis_version, '_RC') &&
-      !contains(needs.build.outputs.isis_version, '_LTS')
     steps:
       - uses: actions/checkout@v4
         with:
