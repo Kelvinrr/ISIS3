@@ -52,7 +52,7 @@ If you use ISIS in your research, please cite the specific version you used:
 
 **APA Format:**
 ```
-USGS Astrogeology Science Center. (2026). Integrated Software for Imagers and Spectrometers (ISIS) (Version test3) [Computer software]. U.S. Geological Survey. https://doi.org/10.5066/P14RZST9
+USGS Astrogeology Science Center. (2026). Integrated Software for Imagers and Spectrometers (ISIS) (Version 9.0) [Computer software]. U.S. Geological Survey. https://doi.org/10.5066/P14RZST9
 ```
 
 **BibTeX Format:**
