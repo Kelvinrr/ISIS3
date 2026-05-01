@@ -542,6 +542,8 @@ namespace Isis {
       msg += " the -BATCHLIST option";
       throw IException(IException::User, msg, _FILEINFO_);
     }
+    
+    VerifyAll();
   }
 
   QString UserInterface::BuildNewCommandLineFromPvl(Pvl temp){

@@ -34,6 +34,7 @@ IsisGroupData::~IsisGroupData() {
 
 
 IsisParameterData::IsisParameterData() {
+  wasEntered = false;
 }
 
 IsisParameterData::~IsisParameterData() {

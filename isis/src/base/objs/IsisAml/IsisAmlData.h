@@ -80,6 +80,7 @@ class IsisParameterData {
     Isis::CubeAttributeInput inCubeAtt;
     QString pixelType;
     std::vector<IsisHelperData> helpers;
+    bool wasEntered;
 
     IsisParameterData();
     ~IsisParameterData();

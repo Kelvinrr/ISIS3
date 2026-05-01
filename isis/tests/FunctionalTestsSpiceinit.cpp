@@ -792,3 +792,42 @@ TEST(Spiceinit, TestSpiceinitHrscWebError) {
     EXPECT_THAT(e.what(), HasSubstr("Spice Server does not support MEX HRSC images. Please rerun spiceinit with local MEX data."));
   }
 }
+
+TEST_F(DefaultCube, SpiceinitWebTrue) {
+  QVector<QString> args = {"from=" + testCube->fileName(), "web=true"};
+  UserInterface options(APP_XML, args);
+  Pvl log;
+  spiceinit(options, &log);
+  std::cout << log << std::endl;
+
+
+}
+
+TEST_F(DefaultCube, SpiceinitExplicitParameterConflict) {
+  QVector<QString> args = {"from=" + testCube->fileName(), "web=true", "attach=true"};
+
+  try {
+    UserInterface options(APP_XML, args);
+    FAIL() << "Expected exception for conflicting parameters";
+  }
+  catch (IException &e) {
+    QString errorMsg = e.toString();
+    EXPECT_THAT(errorMsg.toStdString(),
+                HasSubstr("must NOT be used if parameter"));
+  }
+}
+
+TEST_F(DefaultCube, SpiceinitMissingShapeModelFile) {
+  QVector<QString> args = {"shape=user", "model=/nonexistent/missing.cub"};
+  UserInterface options(APP_XML, args);
+
+  try {
+    spiceinit(testCube, options);
+    FAIL() << "Expected exception for missing shape model file";
+  }
+  catch (IException &e) {
+    QString errorMsg = e.toString();
+    EXPECT_THAT(errorMsg.toStdString(),
+                HasSubstr("does not exist"));
+  }
+}

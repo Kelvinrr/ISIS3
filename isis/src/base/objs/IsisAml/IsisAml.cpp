@@ -78,6 +78,7 @@ void IsisAml::PutAsString(const QString &paramName,
 
   param->values.clear();
   param->values.push_back(value);
+  param->wasEntered = true;
 
 }
 
@@ -106,6 +107,7 @@ void IsisAml::PutAsString(const QString &paramName,
 
   param->values.resize(value.size());
   param->values = value;
+  param->wasEntered = true;
 
 }
 
@@ -2021,11 +2023,7 @@ bool IsisAml::WasEntered(const QString &paramName) const {
 
   const IsisParameterData *param = ReturnParam(paramName);
 
-  if(param->values.size() == 0) {
-    return false;
-  }
-
-  return true;
+  return param->wasEntered;
 }
 
 
@@ -2577,6 +2575,10 @@ void IsisAml::VerifyAll() {
     for(unsigned int p = 0; p < groups[g].parameters.size(); p++) {
       IsisParameterData *param = &(this->groups[g].parameters[p]);
 
+      if (param->name.toStdString() == "FROM") {
+        continue;
+      }
+
       Verify(param);
 
       // Check the values for inclusive clauses
@@ -2624,9 +2626,6 @@ void IsisAml::VerifyAll() {
         bool paramOneSet = false;
         try {
           paramOneSet = WasEntered(param->name);
-          if (param->type == "boolean") {
-            paramOneSet = WasEntered(param->name) && GetBoolean(param->name);
-          }
         }
         catch (Isis::IException &e) {}
 
@@ -2634,9 +2633,6 @@ void IsisAml::VerifyAll() {
         bool paramTwoSet = false;
         try {
           paramTwoSet = WasEntered(param2->name);
-          if (param2->type == "boolean") {
-            paramTwoSet = WasEntered(param2->name) && GetBoolean(param2->name);
-          }
         }
         catch (Isis::IException &e) {}
 
