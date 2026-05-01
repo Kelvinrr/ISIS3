@@ -68,15 +68,7 @@ USGS Astrogeology Science Center. (2026). Integrated Software for Imagers and Sp
 }
 ```
 
-**ISIS DEV DOI BADGE**
-
-[![ISIS DEV DOI](https://img.shields.io/badge/DOI-10.5066/P145STNF-blue.svg)](https://doi.org/10.5066/P145STNF)
-
-Use "Cite this repository" button on dev branch for citation information. 
-
-**DOI Badge:**
-
-[![Badge for DOI 10.5066/P14RZST9](https://img.shields.io/badge/DOI-10.5066%2FP14RZST9-blue)](https://doi.org/10.5066/P14RZST9)
+Use "Cite this repository" button on dev branch for citation information for dev builds. 
 
 ### Citing Previous Versions
 
