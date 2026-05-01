@@ -52,19 +52,19 @@ If you use ISIS in your research, please cite the specific version you used:
 
 **APA Format:**
 ```
-USGS Astrogeology Science Center. (2026). Integrated Software for Imagers and Spectrometers (ISIS) (Version test3) [Computer software]. U.S. Geological Survey. https://doi.org/10.5066/TEST1234
+USGS Astrogeology Science Center. (2026). Integrated Software for Imagers and Spectrometers (ISIS) (Version test3) [Computer software]. U.S. Geological Survey. https://doi.org/10.5066/P14RZST9
 ```
 
 **BibTeX Format:**
 ```bibtex
-@software{ISIStest3,
+@software{ISIS9.0.0,
   author = {{USGS Astrogeology Science Center}},
-  title = {{Integrated Software for Imagers and Spectrometers (ISIS) version test3}},
+  title = {{Integrated Software for Imagers and Spectrometers (ISIS) version 9.0.0}},
   year = {2026},
   publisher = {{U.S. Geological Survey}},
-  version = {test3},
-  doi = {10.5066/TEST1234},
-  url = {{https://doi.org/10.5066/TEST1234}}
+  version = {9.0},
+  doi = {DOI-10.5066/P14RZST9},
+  url = {{https://doi.org/10.5066/P14RZST9}}
 }
 ```
 
