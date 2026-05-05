@@ -543,7 +543,6 @@ namespace Isis {
       throw IException(IException::User, msg, _FILEINFO_);
     }
     
-    VerifyAll();
   }
 
   QString UserInterface::BuildNewCommandLineFromPvl(Pvl temp){

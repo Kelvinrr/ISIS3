@@ -2575,10 +2575,6 @@ void IsisAml::VerifyAll() {
     for(unsigned int p = 0; p < groups[g].parameters.size(); p++) {
       IsisParameterData *param = &(this->groups[g].parameters[p]);
 
-      if (param->name.toStdString() == "FROM") {
-        continue;
-      }
-
       Verify(param);
 
       // Check the values for inclusive clauses
