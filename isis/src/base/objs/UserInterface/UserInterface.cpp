@@ -469,6 +469,7 @@ namespace Isis {
       QString paramName;
       vector<QString> paramValue;
 
+      
       getNextParameter(currArgument, paramName, paramValue);
 
       // we now have a name,value pair
