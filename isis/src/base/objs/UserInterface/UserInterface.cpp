@@ -458,6 +458,7 @@ namespace Isis {
     bool usedDashLast = false;
     bool usedDashRestore = false; //< for throwing -batchlist exceptions at end of function
 
+    
     // pre-process command line for -HELP first
     preProcess("-HELP", options);
     // pre-process command line for -WEBHELP
@@ -469,7 +470,7 @@ namespace Isis {
       QString paramName;
       vector<QString> paramValue;
 
-      
+
       getNextParameter(currArgument, paramName, paramValue);
 
       // we now have a name,value pair
