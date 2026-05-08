@@ -78,8 +78,6 @@ void IsisAml::PutAsString(const QString &paramName,
 
   param->values.clear();
   param->values.push_back(value);
-  param->wasEntered = true;
-
 }
 
 /**
@@ -107,8 +105,6 @@ void IsisAml::PutAsString(const QString &paramName,
 
   param->values.resize(value.size());
   param->values = value;
-  param->wasEntered = true;
-
 }
 
 
@@ -2027,8 +2023,6 @@ bool IsisAml::WasEntered(const QString &paramName) const {
   }
 
   return true;
-
-  // return param->wasEntered;
 }
 
 

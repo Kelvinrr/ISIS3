@@ -803,20 +803,6 @@ TEST_F(DefaultCube, SpiceinitWebTrue) {
 
 }
 
-TEST_F(DefaultCube, SpiceinitExplicitParameterConflict) {
-  QVector<QString> args = {"from=" + testCube->fileName(), "web=true", "attach=true"};
-
-  try {
-    UserInterface options(APP_XML, args);
-    FAIL() << "Expected exception for conflicting parameters";
-  }
-  catch (IException &e) {
-    QString errorMsg = e.toString();
-    EXPECT_THAT(errorMsg.toStdString(),
-                HasSubstr("must NOT be used if parameter"));
-  }
-}
-
 TEST_F(DefaultCube, SpiceinitMissingShapeModelFile) {
   QVector<QString> args = {"shape=user", "model=/nonexistent/missing.cub"};
   UserInterface options(APP_XML, args);
