@@ -2020,10 +2020,15 @@ QString IsisAml::HelperIcon(const int &group, const int &param,
  * @return True if the parameter was entered, and false if it was not
  */
 bool IsisAml::WasEntered(const QString &paramName) const {
-
   const IsisParameterData *param = ReturnParam(paramName);
+  
+  if(param->values.size() == 0) {
+    return false;
+  }
 
-  return param->wasEntered;
+  return true;
+
+  // return param->wasEntered;
 }
 
 
