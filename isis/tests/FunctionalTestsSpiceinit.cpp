@@ -793,15 +793,20 @@ TEST(Spiceinit, TestSpiceinitHrscWebError) {
   }
 }
 
+
 TEST_F(DefaultCube, SpiceinitWebTrue) {
   QVector<QString> args = {"from=" + testCube->fileName(), "web=true"};
   UserInterface options(APP_XML, args);
   Pvl log;
-  spiceinit(options, &log);
-  std::cout << log << std::endl;
-
-
+  
+  try {
+    spiceinit(options, &log);
+  }
+  catch (IException &e) {
+    FAIL() << "spiceinit threw an exception: " << e.what();
+  }
 }
+
 
 TEST_F(DefaultCube, SpiceinitMissingShapeModelFile) {
   QVector<QString> args = {"shape=user", "model=/nonexistent/missing.cub"};
