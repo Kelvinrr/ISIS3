@@ -139,7 +139,7 @@ namespace Isis {
 
     std::vector<ale::Rotation> rotationCache;
 
-    bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
     auto [sunLt, kernels] = SpiceQL::getTargetStates(p_cacheTime, "MRO", "MARS", "IAU_MARS", "NONE", "", {"reconstructed"}, {"reconstructed"}, useWeb, false, false);
 
     double state[6];
