@@ -515,7 +515,11 @@ namespace Isis {
     // Compute start SCLK if present on labels
     if ( origStartClock.size() > 0 ) {
       NaifStatus::CheckErrors();
-      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), newStartClock.Et(), SpiceQL::getSpiceqlName(camera->instrumentId().toStdString()), useWeb);
+      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), 
+                                                        newStartClock.Et(), 
+                                                        SpiceQL::getSpiceqlName(camera->instrumentId().toStdString()), 
+                                                        useWeb, 
+                                                        useWeb);
 
       NaifStatus::CheckErrors();
 
@@ -530,7 +534,11 @@ namespace Isis {
     // Compute end SCLK if present on labels
     if ( origStopClock.size() > 0 ) {
       NaifStatus::CheckErrors();
-      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), newStopClock.Et(), SpiceQL::getSpiceqlName(camera->instrumentId().toStdString()), useWeb);
+      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), 
+                                                        newStopClock.Et(), 
+                                                        SpiceQL::getSpiceqlName(camera->instrumentId().toStdString()), 
+                                                        useWeb, 
+                                                        useWeb);
       NaifStatus::CheckErrors();
 
       sumtStopClock.addValue(origStopClock[0], origStopClock.unit());

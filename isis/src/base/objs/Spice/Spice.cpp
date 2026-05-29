@@ -1399,10 +1399,10 @@ namespace Isis {
       SpiceDouble timeOutput;
       string spqlMissionName = SpiceQL::getSpiceqlName(m_mission_name.toStdString());
       if (clockTicks) {
-        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), spqlMissionName, useWeb).first;
+        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), spqlMissionName, useWeb, useWeb).first;
       }
       else {
-        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), spqlMissionName, useWeb).first;
+        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), spqlMissionName, useWeb, useWeb).first;
       }
       storedClockTime = timeOutput;
       storeResult(key, SpiceDoubleType, timeOutput);

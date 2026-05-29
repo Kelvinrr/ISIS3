@@ -45,8 +45,7 @@ namespace Isis {
     LoadLeapSecondKernel();
 
     // Convert the time string to a double ephemeris time
-    bool useWeb = Preference::Preferences().useWebSpice();
-    p_et = SpiceQL::utcToEt(time.toLatin1().data(), useWeb).first;
+    p_et = SpiceQL::utcToEt(time.toLatin1().data(), false, false).first;
   }
 
 
@@ -64,8 +63,7 @@ namespace Isis {
     LoadLeapSecondKernel();
 
     // Convert the time string to a double ephemeris time
-    bool useWeb = Preference::Preferences().useWebSpice();
-    p_et = SpiceQL::utcToEt(time.toLatin1().data(), useWeb).first;
+    p_et = SpiceQL::utcToEt(time.toLatin1().data(), false, false).first;
   }
 
   // Overload of "=" with a c string
@@ -73,8 +71,7 @@ namespace Isis {
     LoadLeapSecondKernel();
 
     // Convert the time string to a double ephemeris time
-    bool useWeb = Preference::Preferences().useWebSpice();
-    p_et = SpiceQL::utcToEt(time, useWeb).first; 
+    p_et = SpiceQL::utcToEt(time, false, false).first; 
   }
 
   // Overload of "=" with a double
@@ -215,8 +212,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Year() const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, false, false).first;
     return IString(utc.substr(0, 4).c_str()).ToInteger();
   }
 
@@ -235,8 +231,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Month() const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, false, false).first;
     return IString(utc.substr(5, 2).c_str()).ToInteger();
   }
 
@@ -255,8 +250,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Day() const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, false, false).first;
     return IString(utc.substr(8, 2).c_str()).ToInteger();
   }
 
@@ -275,8 +269,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Hour() const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, false, false).first;
     return IString(utc.substr(11, 2).c_str()).ToInteger();
   }
 
@@ -295,8 +288,7 @@ namespace Isis {
    * @return int
    */
   int iTime::Minute() const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", 3, false, false).first;
     return IString(utc.substr(14, 2).c_str()).ToInteger();
   }
 
@@ -322,9 +314,8 @@ namespace Isis {
    * @return double
    */
   double iTime::Second() const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", 8, useWeb).first;
-    return IString(utc.substr(17, 7).c_str()).ToDouble();
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", 7, false, false).first;
+    return IString(utc.substr(17, 10).c_str()).ToDouble();
   }
 
   /**
@@ -342,8 +333,7 @@ namespace Isis {
    * @return int
    */
   int iTime::DayOfYear() const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "D", 3, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "D", 3, false, false).first;
     return IString(utc.substr(5, 3).c_str()).ToInteger();
   }
 
@@ -363,8 +353,7 @@ namespace Isis {
    * @return string The internalized time, in UTC format
    */
   QString iTime::UTC(int precision) const {
-    bool useWeb = Preference::Preferences().useWebSpice();
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", precision, useWeb).first;
+    string utc = SpiceQL::etToUtc(p_et, "ISOC", precision, false, false).first;
     return utc.c_str();
   }
 
@@ -404,8 +393,7 @@ namespace Isis {
     LoadLeapSecondKernel();
 
     double et;
-    bool useWeb = Preference::Preferences().useWebSpice();
-    et = SpiceQL::utcToEt(utcString.toLatin1().data(), useWeb).first;
+    et = SpiceQL::utcToEt(utcString.toLatin1().data(), false, false).first;
     setEt(et);
     NaifStatus::CheckErrors();
   }
@@ -420,12 +408,6 @@ namespace Isis {
     // Inorder to improve the speed of iTime comparisons, the leapsecond
     // kernel is loaded only once and left open.
     if(p_lpInitialized) return;
-
-    bool useWeb = Preference::Preferences().useWebSpice();
-    if (useWeb) {
-      // dont do anything
-      return;
-    }
 
     // Get the leap second kernel file open
     Isis::PvlGroup &dataDir = Isis::Preference::Preferences().findGroup("DataDirectory");
