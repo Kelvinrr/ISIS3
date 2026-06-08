@@ -626,7 +626,7 @@ namespace Isis {
     bool success = false;
 
     for (int i = files.count() - 1; !success && i >= 0; i--) {
-      foundValue = files[i].mid(before.count(), width).toLong(&success);
+      foundValue = files[i].mid(before.size(), width).toLong(&success);
     }
 
     if (success) {
@@ -814,9 +814,6 @@ namespace Isis {
 
     int varSearchStartPos = 0;
     int varStartPos = -1;
-    if(Preference::Preferences().hasGroup("DataDirectory")) {
-      PvlGroup &testing = Preference::Preferences().findGroup("DataDirectory");
-    }
     // Loop while there are any "$" at the current position or after
     // Some "$" might be skipped if no translation can be found
     while((varStartPos = expandedStr.indexOf("$", varSearchStartPos)) != -1) {

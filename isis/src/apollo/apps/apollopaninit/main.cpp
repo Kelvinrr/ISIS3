@@ -243,6 +243,7 @@ void IsisMain() {
   //////////////////////////////////////////attach a target rotation table
   bool useWeb = Preference::Preferences().useWebSpice();
   std::string frameName;
+
   SpiceInt frameCode = 0;
   try {
     auto [output, kernels] = SpiceQL::getTargetFrameInfo(301, mission.toLower().toStdString(), useWeb, true);
@@ -256,6 +257,7 @@ void IsisMain() {
       throw IException(IException::Io, msg, _FILEINFO_);
     }
   }
+
 
 
   spRot = new SpiceRotation(frameCode);
