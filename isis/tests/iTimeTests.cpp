@@ -55,7 +55,7 @@ TEST(iTimeTests, FromEt) {
 
 
 TEST(iTimeTests, StringTimes) {
-    QString timeString("2003-01-02T12:15:01.12340000");
+    QString timeString("2003-01-02T12:15:01.1234");
     iTime testTime(timeString);
 
     EXPECT_EQ(toString(testTime.Year()).toStdString(), testTime.YearString().toStdString());

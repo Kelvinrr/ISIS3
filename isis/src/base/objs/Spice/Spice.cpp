@@ -149,7 +149,6 @@ namespace Isis {
     
     // Get the kernel group and load main kernels
     PvlGroup &kernels = lab.findGroup("Kernels", Pvl::Traverse);
-    m_mission_name = (QString)lab.findGroup("Instrument", Pvl::Traverse).findKeyword("SpacecraftName");
 
     // Get the time padding first
     if (kernels.hasKeyword("StartPadding")) {
@@ -546,7 +545,6 @@ namespace Isis {
     m_spkBodyCode = new SpiceInt;
     m_bodyFrameCode = new SpiceInt;
 
-    m_mission_name = (QString)lab.findGroup("Instrument", Pvl::Traverse).findKeyword("SpacecraftName");
     m_naifKeywords = new PvlObject("NaifKeywords");
     // m_sky = false;
 
@@ -1397,12 +1395,11 @@ namespace Isis {
       
       bool useWeb = Preference::Preferences().useWebSpice();
       SpiceDouble timeOutput;
-      string spqlMissionName = SpiceQL::getSpiceqlName(m_mission_name.toStdString());
       if (clockTicks) {
-        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), spqlMissionName, useWeb, useWeb).first;
+        timeOutput = SpiceQL::doubleSclkToEt(sclkCode, clockValue.toDouble(), "", useWeb, useWeb).first;
       }
       else {
-        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), spqlMissionName, useWeb, useWeb).first;
+        timeOutput = SpiceQL::strSclkToEt(sclkCode, clockValue.toLatin1().data(), "", useWeb, useWeb).first;
       }
       storedClockTime = timeOutput;
       storeResult(key, SpiceDoubleType, timeOutput);

@@ -353,8 +353,13 @@ namespace Isis {
    * @return string The internalized time, in UTC format
    */
   QString iTime::UTC(int precision) const {
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", precision, false, false).first;
-    return utc.c_str();
+    QString utc = SpiceQL::etToUtc(p_et, "ISOC", precision, false, false).first.c_str();
+
+    // Trim trailing zeros from the fractional seconds to match prior behavior.
+    if (utc.contains('.')) {
+      utc = utc.remove(QRegularExpression("(\\.0*|0*)$"));
+    }
+    return utc;
   }
 
   void iTime::setEt(double et) {

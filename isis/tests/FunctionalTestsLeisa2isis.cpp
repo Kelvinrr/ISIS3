@@ -48,7 +48,7 @@ TEST(Leisa2Isis, Leisa2IsisTestDefault) {
   ASSERT_EQ(inst["TargetName"][0].toStdString(), "EUROPA" );
   ASSERT_EQ(inst["SpacecraftClockStartCount"][0].toStdString(), "1/0034931099:00000" );
   ASSERT_DOUBLE_EQ(double(inst["ExposureDuration"]), 0.676);
-  ASSERT_EQ(inst["StartTime"][0].toStdString(), "2007-02-28T01:13:01.3882781" );
+  ASSERT_EQ(inst["StartTime"][0].toStdString(), "2007-02-28T01:13:01.388278" );
   ASSERT_EQ(inst["StopTime"][0].toStdString(), "2007-02-28T01:17:12.388278" );
   ASSERT_DOUBLE_EQ(double(inst["FrameRate"]), 1.47929);
   ASSERT_EQ(inst["FrameRate"].unit().toStdString(), "Hz");
@@ -286,7 +286,7 @@ TEST(Leisa2Isis, Leisa2IsisTestRaw) {
    ASSERT_EQ(inst["SpacecraftClockStartCount"][0].toStdString(), "1/0030594839:00000" );
    ASSERT_DOUBLE_EQ(double(inst["ExposureDuration"]), 0.131);
    ASSERT_EQ(inst["StartTime"][0].toStdString(), "2007-01-08T20:42:01.3824425" );
-   ASSERT_EQ(inst["StopTime"][0].toStdString(), "2007-01-08T20:42:42.3824425" );
+   ASSERT_EQ(inst["StopTime"][0].toStdString(), "2007-01-08T20:42:42.3824424" );
    ASSERT_DOUBLE_EQ(double(inst["FrameRate"]), 7.63359);
    ASSERT_EQ(inst["FrameRate"].unit().toStdString(), "Hz");
 

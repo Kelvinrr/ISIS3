@@ -258,8 +258,6 @@ void IsisMain() {
     }
   }
 
-
-
   spRot = new SpiceRotation(frameCode);
   //create a table from starttime to endtime (streched by 3%) with NODES entries
   spRot->LoadCache(time0-0.015*(time1-time0), time1+0.015*(time1-time0), NODES);
