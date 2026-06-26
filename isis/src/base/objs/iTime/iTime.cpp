@@ -410,9 +410,15 @@ namespace Isis {
 
   //! Uses the Naif routines to load the most current leap second kernel.
   void iTime::LoadLeapSecondKernel() {
+    // dont furnish and use the built in SpiceQL implementation.
+    if (getenv("ISISDATA") == NULL && QString(getenv("ISISDATA")) == "") {
+      return;
+    }
+  
     // Inorder to improve the speed of iTime comparisons, the leapsecond
     // kernel is loaded only once and left open.
     if(p_lpInitialized) return;
+
 
     // Get the leap second kernel file open
     Isis::PvlGroup &dataDir = Isis::Preference::Preferences().findGroup("DataDirectory");

@@ -754,6 +754,29 @@ namespace Isis {
       shape = "ellipsoid";
     }
 
+    // SHAPE=WEB resolves the shape model from the ISIS STAC interface rather
+    // than the SPICE server (which has no concept of "web" and would reject the
+    // request). Resolve it here and send the server a plain ellipsoid; the
+    // resolved ShapeModel is substituted into the kernels group below. Mirrors
+    // the local SHAPE=WEB path: STAC global DEM first, system DEM as fallback.
+    QString webShapeModel;
+    if (shape == "web") {
+      KernelDb webShapeDb(0);
+      webShapeModel = webShapeDb.getGlobalDemTiffUrl(labels);
+
+      if (webShapeModel.isEmpty()) {
+        PvlGroup &dataDir = Preference::Preferences().findGroup("DataDirectory");
+        QString baseDir = dataDir["Base"];
+        webShapeDb.loadKernelDbFiles(dataDir, baseDir + "/dems", labels);
+        webShapeDb.readKernelDbFiles();
+        Kernel demKernel = webShapeDb.dem(labels);
+        if (demKernel.size() > 0) {
+          webShapeModel = demKernel[0];
+        }
+      }
+      shape = "ellipsoid";
+    }
+
     double startPad = ui.GetDouble("STARTPAD");
     double endPad   = ui.GetDouble("ENDPAD");
 
@@ -799,6 +822,11 @@ namespace Isis {
 
     if (ui.GetString("SHAPE") == "USER") {
       kernelsGroup["ShapeModel"] = ui.GetCubeName("MODEL");
+    }
+    else if (ui.GetString("SHAPE") == "WEB" && !webShapeModel.isEmpty()) {
+      // The server returned an ellipsoid stand-in; replace it with the shape
+      // model resolved from the STAC interface (or local DEM fallback).
+      kernelsGroup["ShapeModel"] = webShapeModel;
     }
 
     icube->putGroup(kernelsGroup);
