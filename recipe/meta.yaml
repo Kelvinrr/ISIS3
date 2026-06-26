@@ -43,7 +43,6 @@ source:
 build:
   number: {{ build_number }}
 
-
 # Shotgun strat on requirements until we can narrow them down
 requirements:
   build:
