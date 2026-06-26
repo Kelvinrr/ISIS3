@@ -754,11 +754,6 @@ namespace Isis {
       shape = "ellipsoid";
     }
 
-    // SHAPE=WEB resolves the shape model from the ISIS STAC interface rather
-    // than the SPICE server (which has no concept of "web" and would reject the
-    // request). Resolve it here and send the server a plain ellipsoid; the
-    // resolved ShapeModel is substituted into the kernels group below. Mirrors
-    // the local SHAPE=WEB path: STAC global DEM first, system DEM as fallback.
     QString webShapeModel;
     if (shape == "web") {
       KernelDb webShapeDb(0);
@@ -824,8 +819,6 @@ namespace Isis {
       kernelsGroup["ShapeModel"] = ui.GetCubeName("MODEL");
     }
     else if (ui.GetString("SHAPE") == "WEB" && !webShapeModel.isEmpty()) {
-      // The server returned an ellipsoid stand-in; replace it with the shape
-      // model resolved from the STAC interface (or local DEM fallback).
       kernelsGroup["ShapeModel"] = webShapeModel;
     }
 
