@@ -56,8 +56,8 @@ TEST(Chan1m32Isis, Chan1m32IsisTestFowardAscending) {
   ASSERT_EQ(inst["TargetName"][0].toStdString(), "MOON" );
   ASSERT_EQ(inst["SpacecraftClockStartCount"][0].toStdString(), "12/1759056.764" );
   ASSERT_DOUBLE_EQ(double(inst["LineExposureDuration"]), 50.88);
-  ASSERT_EQ(inst["StartTime"][0].toStdString(), "2009-06-30T08:34:35.42441100" );
-  ASSERT_EQ(inst["StopTime"][0].toStdString(), "2009-06-30T08:34:35.67881100" );
+  ASSERT_EQ(inst["StartTime"][0].toStdString(), "2009-06-30T08:34:35.424411" );
+  ASSERT_EQ(inst["StopTime"][0].toStdString(), "2009-06-30T08:34:35.678811" );
   ASSERT_EQ(inst["SpacecraftYawDirection"][0].toStdString(), "FORWARD" );
   ASSERT_EQ(inst["OrbitLimbDirection"][0].toStdString(), "ASCENDING" );
 
