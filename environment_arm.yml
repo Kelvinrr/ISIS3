@@ -23,7 +23,7 @@ dependencies:
   - ffmpeg
   - geos >=3.12,<3.13
   - geotiff
-  - gdal >=3.7,<3.9
+  - gdal >=3.12,<4
   - gmp
   - gcovr
   - graphviz
@@ -35,7 +35,8 @@ dependencies:
   - jama
   - kalasiris
   - krb5
-  - libgdal >=3.7,<3.9
+  - libgdal >=3.12,<4
+  - libgdal-arrow-parquet >=3.12,<4
   - libopencv >=4.5,<4.10
   - libpng >=1.6.34,<1.7
   - libprotobuf >=4,<5

@@ -515,6 +515,7 @@ namespace Isis {
 
       void writeHeader(std::fstream *output);
       int writeFirstPoint(std::fstream *output);
+      void fillPointProto(ControlPoint *controlPoint, ControlPointFileEntryV0002 &protoPoint);
 
       ControlNetHeaderV0005 m_header; /**< Header containing information about
                                            the whole network.*/

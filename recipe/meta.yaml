@@ -66,7 +66,7 @@ requirements:
    - ffmpeg
    - geos >=3.12, <3.13
    - geotiff
-   - gdal >=3.7,<3.9
+   - gdal >=3.12,<4
    - gmp
    - graphviz
    - conda-forge::gsl >=2.6, <2.7
@@ -78,7 +78,8 @@ requirements:
    - usgs-astrogeology::kakadu==1 # [not (osx and arm64)]
    - kalasiris
    - krb5
-   - libgdal >=3.7,<3.9
+   - libgdal >=3.12,<4
+   - libgdal-arrow-parquet >=3.12,<4
    - libopencv >=4.5,<4.10
    - libpng >=1.6.34,<1.7
    - libprotobuf >=4,<5
@@ -154,6 +155,8 @@ requirements:
   - {{ pin_compatible('kakadu', max_pin='x') }}   # [not (osx and arm64)]
   - kalasiris
   - libcxx
+  - {{ pin_compatible('libgdal', max_pin='x.x') }}
+  - {{ pin_compatible('libgdal-arrow-parquet', max_pin='x.x') }}
   - libopenblas
   - {{ pin_compatible('libopencv', max_pin='x.x') }}
   - {{ pin_compatible('libpng') }}

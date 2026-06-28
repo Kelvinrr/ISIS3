@@ -555,9 +555,10 @@ namespace Isis {
    */
   void ControlNetVersioner::read(const FileName netFile, Progress *progress) {
     try {
-      // Check if file is a Parquet file by extension
+      // Check if file is a Parquet file by extension. Strip any VSI query string
+      // (e.g. ".parquet?list=no") before testing the suffix so VSI paths are detected.
       QString filename = netFile.expanded();
-      if (filename.endsWith(".parquet", Qt::CaseInsensitive)) {
+      if (filename.split("?").first().endsWith(".parquet", Qt::CaseInsensitive)) {
         readParquet(netFile, progress);
         return;
       }
@@ -1664,9 +1665,10 @@ namespace Isis {
    *
    */
   void ControlNetVersioner::write(FileName netFile) {
-    // Check if file is a Parquet file by extension
+    // Check if file is a Parquet file by extension. Strip any VSI query string
+    // before testing the suffix so VSI paths are detected.
     QString filename = netFile.expanded();
-    if (filename.endsWith(".parquet", Qt::CaseInsensitive)) {
+    if (filename.split("?").first().endsWith(".parquet", Qt::CaseInsensitive)) {
       writeParquet(netFile);
       return;
     }
@@ -1777,29 +1779,22 @@ namespace Isis {
 
 
  /**
-  * This will write the first control point to a file stream.
-  * The written point will be removed from the versioner and then deleted if the versioner
-  * has ownership of it.
+  * Populate a ControlPointFileEntryV0002 protobuf message from a ControlPoint.
   *
-  * @param output A pointer to the fileStream that we are writing the point to.
+  * This is the single source of truth for mapping an in-memory ControlPoint (and
+  * its measures) onto the protobuf field set. Both the protobuf writer
+  * (writeFirstPoint) and the Parquet writer (writeParquet) call this so the two
+  * formats can never disagree on field names, enum encodings, or which optional
+  * fields are emitted. It is a pure field mapping: it does NOT consume m_points,
+  * validate the point id, or serialize. The caller is responsible for those.
   *
-  * @return @b int The number of bytes written to the filestream.
+  * @param controlPoint The control point to convert. Must have a non-empty id.
+  * @param protoPoint The protobuf message to populate.
   */
-  int ControlNetVersioner::writeFirstPoint(fstream *output) {
+  void ControlNetVersioner::fillPointProto(ControlPoint *controlPoint,
+                                           ControlPointFileEntryV0002 &protoPoint) {
 
-      BigInt startPos = output->tellp();
-
-      ControlPointFileEntryV0002 protoPoint;
-      ControlPoint *controlPoint = m_points.takeFirst();
-
-      if ( controlPoint->GetId().isEmpty() ) {
-        QString msg = "Unbable to write first point of control net. "
-                      "Invalid control point has no point ID value.";
-        throw IException(IException::Unknown, msg, _FILEINFO_);
-      }
-      else {
-        protoPoint.set_id(controlPoint->GetId().toLatin1().data());
-      }
+      protoPoint.set_id(controlPoint->GetId().toLatin1().data());
 
       if ( QString::compare(controlPoint->GetChooserName(), "Null", Qt::CaseInsensitive) != 0 ) {
         protoPoint.set_choosername(controlPoint->GetChooserName().toLatin1().data());
@@ -2063,6 +2058,34 @@ namespace Isis {
 
         *protoPoint.add_measures() = protoMeasure;
       }
+  }
+
+
+ /**
+  * This will write the first control point to a file stream.
+  * The written point will be removed from the versioner and then deleted if the versioner
+  * has ownership of it.
+  *
+  * @param output A pointer to the fileStream that we are writing the point to.
+  *
+  * @return @b int The number of bytes written to the filestream.
+  */
+  int ControlNetVersioner::writeFirstPoint(fstream *output) {
+
+      BigInt startPos = output->tellp();
+
+      ControlPointFileEntryV0002 protoPoint;
+      ControlPoint *controlPoint = m_points.takeFirst();
+
+      if ( controlPoint->GetId().isEmpty() ) {
+        QString msg = "Unbable to write first point of control net. "
+                      "Invalid control point has no point ID value.";
+        throw IException(IException::Unknown, msg, _FILEINFO_);
+      }
+
+      // Map every ControlPoint/ControlMeasure field onto the protobuf message.
+      // Shared with writeParquet() so the two formats can never diverge.
+      fillPointProto(controlPoint, protoPoint);
 
       uint32_t byteSize = protoPoint.ByteSizeLong();
 
@@ -2090,592 +2113,230 @@ namespace Isis {
 
 
   /**
-   * Read a control network from a Parquet file using GDAL.
+   * Write a control network to a Parquet file using the GDAL OGR "Parquet" driver.
    *
-   * This method reads control network data from a Parquet file. The Parquet format
-   * stores control points in a tabular format with separate layers for points and measures.
-   *
-   * @param netFile The Parquet file to read.
-   * @param progress The progress object to track reading points.
-   */
-  void ControlNetVersioner::readParquet(const FileName netFile, Progress *progress) {
-    cout << "reading parquert" << endl;
-    
-    GDALAllRegister();
-    
-    GDALDataset *poDS = (GDALDataset*) GDALOpenEx(
-      netFile.expanded().toLatin1().data(),
-      GDAL_OF_VECTOR | GDAL_OF_READONLY,
-      NULL, NULL, NULL
-    );
-    
-    cout << "created dataset" << endl;
-
-    if (poDS == NULL) {
-      QString msg = "Failed to open Parquet file [" + netFile.name() + "]";
-      throw IException(IException::Io, msg, _FILEINFO_);
-    }
-    
-    cout << "trying to read features" << endl; 
-
-    try {
-      // Read network metadata from "metadata" layer
-      OGRLayer *metadataLayer = poDS->GetLayerByName("metadata");
-      if (metadataLayer != NULL) {
-        metadataLayer->ResetReading();
-        OGRFeature *feature = metadataLayer->GetNextFeature();
-
-        if (feature != NULL) {
-          m_header.networkID = QString(feature->GetFieldAsString("networkId"));
-          m_header.targetName = QString(feature->GetFieldAsString("targetName"));
-          m_header.created = QString(feature->GetFieldAsString("created"));
-          m_header.lastModified = QString(feature->GetFieldAsString("lastModified"));
-          m_header.description = QString(feature->GetFieldAsString("description"));
-          m_header.userName = QString(feature->GetFieldAsString("userName"));
-          OGRFeature::DestroyFeature(feature);
-        }
-        else { 
-          cout << "no metadata found" << endl;
-          m_header.networkID = "networkId";
-          m_header.targetName = "targetName";
-          m_header.created = "created";
-          m_header.lastModified = "lastModified";
-          m_header.description = "description";
-          m_header.userName = "userName";
-        }
-      }
-      
-      // Read control points from "points" layer
-      OGRLayer *pointsLayer = poDS->GetLayer(0);
-      if (pointsLayer == NULL) {
-        GDALClose(poDS);
-        QString msg = "Parquet file [" + netFile.name() + "] does not contain 'points' layer";
-        throw IException(IException::Io, msg, _FILEINFO_);
-      }
-      
-      cout << "creating map of measures by point ID" << endl;
-
-      // Build a map of measures by point ID for efficient lookup
-      map<QString, QList<OGRFeature*>> measuresByPoint;
-      pointsLayer->ResetReading();
-      OGRFeature *measureFeature;
-      while ((measureFeature = pointsLayer->GetNextFeature()) != NULL) {
-        QString pointId = QString(measureFeature->GetFieldAsString("id"));
-        if(pointId.isEmpty()) {
-          throw IException(IException::Programmer, "Point ID is empty", _FILEINFO_);
-        }
-        cout << "adding measure feature to point ID: " << pointId << endl;
-        measuresByPoint[pointId].append(measureFeature);
-      }
-      
-      // Count points for progress
-      GIntBig numPoints = pointsLayer->GetFeatureCount();
-
-      
-      for (const auto &pair : measuresByPoint) {
-        try {
-          cout << "creating control point with ID: " << pair.first << endl;
-          ControlPoint *point = new ControlPoint();
-          point->SetId(pair.first);
-          
-          point->SetChooserName(pair.second[0]->GetFieldAsString("chooserName"));
-          point->SetDateTime(pair.second[0]->GetFieldAsString("dateTime"));
-          point->SetEditLock(pair.second[0]->GetFieldAsInteger("editLock") != 0);
-          point->SetIgnored(pair.second[0]->GetFieldAsInteger("ignore") != 0);
-          
-          // Read a priori surface point
-          double aprioriX = pair.second[0]->GetFieldAsDouble("aprioriX");
-          double aprioriY = pair.second[0]->GetFieldAsDouble("aprioriY");
-          double aprioriZ = pair.second[0]->GetFieldAsDouble("aprioriZ");
-              
-          symmetric_matrix<double, upper> aprioriCovarianceMatrix;
-          
-          aprioriCovarianceMatrix.resize(3);
-          aprioriCovarianceMatrix.clear();
-          int size; 
-          const double *aprioriCovar = pair.second[0]->GetFieldAsDoubleList("aprioriCovar", &size);
-          if (size == 6) { 
-            aprioriCovarianceMatrix(0, 0) = aprioriCovar[0];
-            aprioriCovarianceMatrix(0, 1) = aprioriCovar[1];
-            aprioriCovarianceMatrix(0, 2) = aprioriCovar[2];
-            aprioriCovarianceMatrix(1, 1) = aprioriCovar[3];
-            aprioriCovarianceMatrix(1, 2) = aprioriCovar[4];
-            aprioriCovarianceMatrix(2, 2) = aprioriCovar[5];
-            
-            point->SetAprioriSurfacePoint(SurfacePoint(Displacement(aprioriX, Displacement::Meters),
-                                                       Displacement(aprioriY, Displacement::Meters), 
-                                                       Displacement(aprioriZ, Displacement::Meters), 
-                                                       aprioriCovarianceMatrix));
-          }
-          else {
-            cout << "apriori covariance matrix size is not a 6 element array, skipping" << endl;
-            point->SetAprioriSurfacePoint(SurfacePoint(Displacement(aprioriX, Displacement::Meters),
-                                                       Displacement(aprioriY, Displacement::Meters), 
-                                                       Displacement(aprioriZ, Displacement::Meters)));
-          }
-
-    
-          // read adjusted surface point
-          double adjustedX = pair.second[0]->GetFieldAsDouble("adjustedx");
-          double adjustedY = pair.second[0]->GetFieldAsDouble("adjustedy");
-          double adjustedZ = pair.second[0]->GetFieldAsDouble("adjustedz");
-            
-          symmetric_matrix<double, upper> adjustedCovarianceMatrix;
-          adjustedCovarianceMatrix.resize(3);
-          adjustedCovarianceMatrix.clear();
-          
-          const double *adjustedCovar = pair.second[0]->GetFieldAsDoubleList("adjustedcovar", &size);
-          if (size == 6) { 
-            adjustedCovarianceMatrix(0, 0) = adjustedCovar[0];
-            adjustedCovarianceMatrix(0, 1) = adjustedCovar[1];
-            adjustedCovarianceMatrix(0, 2) = adjustedCovar[2];
-            adjustedCovarianceMatrix(1, 1) = adjustedCovar[3];
-            adjustedCovarianceMatrix(1, 2) = adjustedCovar[4];
-            adjustedCovarianceMatrix(2, 2) = adjustedCovar[5];
-            point->SetAdjustedSurfacePoint(SurfacePoint(Displacement(adjustedX, Displacement::Meters),
-                                                       Displacement(adjustedY, Displacement::Meters), 
-                                                       Displacement(adjustedZ, Displacement::Meters), 
-                                                       adjustedCovarianceMatrix));
-          }
-          else {
-            cout << "adjusted covariance matrix size is not a 6 element array, skipping" << endl;
-            point->SetAdjustedSurfacePoint(SurfacePoint(Displacement(adjustedX, Displacement::Meters),
-                                                       Displacement(adjustedY, Displacement::Meters), 
-                                                       Displacement(adjustedZ, Displacement::Meters)));
-          }
-          
-          // add measures to the point
-          QList<OGRFeature*> measures = pair.second;
-          for (OGRFeature *mfeature : measures) {
-            ControlMeasure *measure = new ControlMeasure();
-            
-            // read serial number (required)
-            QString serialnumber = QString(mfeature->GetFieldAsString("serialnumber"));
-            measure->SetCubeSerialNumber(serialnumber);
-            
-            // read measure type
-            int measureType = mfeature->GetFieldAsInteger("measureType");
-            measure->SetType(static_cast<ControlMeasure::MeasureType>(measureType));
-            
-            // read sample and line
-            if (mfeature->GetFieldIndex("sample") >= 0 && mfeature->GetFieldIndex("line") >= 0) {
-              double sample = mfeature->GetFieldAsDouble("sample");
-              double line = mfeature->GetFieldAsDouble("line");
-              if (sample != Isis::Null && line != Isis::Null) {
-                measure->SetCoordinate(sample, line);
-              }
-            }
-            
-            // read optional measure fields
-            if (mfeature->GetFieldIndex("ignore") >= 0) {
-              bool ignore = mfeature->GetFieldAsInteger("ignore") != 0;
-              if (ignore) {
-                measure->SetIgnored(true);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("editlock") >= 0) {
-              bool editlock = mfeature->GetFieldAsInteger("editlock") != 0;
-              if (editlock) {
-                measure->SetEditLock(true);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("jigsawRejected") >= 0) {
-              bool jigsawrejected = mfeature->GetFieldAsInteger("jigsawrejected") != 0;
-              if (jigsawrejected) {
-                measure->SetRejected(true);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("diameter") >= 0) {
-              double diameter = mfeature->GetFieldAsDouble("diameter");
-              if (diameter != Isis::Null) {
-                measure->SetDiameter(diameter);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("apriorsample") >= 0) {
-              double apriorsample = mfeature->GetFieldAsDouble("apriorsample");
-              if (apriorsample != Isis::Null) {
-                measure->SetAprioriSample(apriorsample);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("apriorline") >= 0) {
-              double apriorline = mfeature->GetFieldAsDouble("apriorline");
-              if (apriorline != Isis::Null) {
-                measure->SetAprioriLine(apriorline);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("samplesigma") >= 0) {
-              double samplesigma = mfeature->GetFieldAsDouble("samplesigma");
-              if (samplesigma != Isis::Null) {
-                measure->SetSampleSigma(samplesigma);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("linesigma") >= 0) {
-              double linesigma = mfeature->GetFieldAsDouble("linesigma");
-              if (linesigma != Isis::Null) {
-                measure->SetLineSigma(linesigma);
-              }
-            }
-            
-            if (mfeature->GetFieldIndex("sampleResidual") >= 0 && 
-                mfeature->GetFieldIndex("lineResidual") >= 0) {
-              double sampleresidual = mfeature->GetFieldAsDouble("sampleResidual");
-              double lineresidual = mfeature->GetFieldAsDouble("lineResidual");
-              if (sampleresidual != Isis::Null && lineresidual != Isis::Null) {
-                measure->SetResidual(sampleresidual, lineresidual);
-              }
-            }
-            OGRFeature::DestroyFeature(mfeature);
-            point->Add(measure);
-          }
-          
-          m_points.append(point);
-          cout << "added control point to list" << endl;
-        }
-        catch (IException &e) {
-          throw e;
-        }
-      }
-      cout << "closing parquet file" << endl;
-      GDALClose(poDS);
-    }
-    catch (IException &e) {
-      GDALClose(poDS);
-      QString msg = "Failed to read Parquet control network file [" + netFile.name() + "]";
-      throw IException(e, IException::Io, msg, _FILEINFO_);
-    }
-    cout << "done reading parquet file" << endl;
-  }
-
-
-  /**
-   * Write a control network to a Parquet file using GDAL.
-   *
-   * This method writes control network data to a Parquet file. The Parquet format
-   * stores control points in a tabular format with separate layers for metadata,
-   * points, and measures.
+   * Layout (driver is one-layer-per-file): a single flattened layer with ONE ROW
+   * PER CONTROL MEASURE. Each row repeats its parent point's columns (denormalized)
+   * plus the network header columns; a point with no measures is written as a single
+   * row with the measure columns unset. Column names are the exact protobuf keys from
+   * ControlPointFileEntryV0002; measure-level columns that would collide with a point
+   * column are prefixed with "measure_" (type, datetime, editLock, ignore,
+   * jigsawRejected, chooserName). Covariance and measure-log data are stored as list
+   * columns mirroring the protobuf "repeated" fields. Both formats build the same
+   * ControlPointFileEntryV0002 (via fillPointProto), so the parquet column set can
+   * never diverge from the protobuf field set.
    *
    * @param netFile The Parquet file to write.
    */
   void ControlNetVersioner::writeParquet(const FileName netFile) {
     GDALAllRegister();
-    
+
     GDALDriver *poDriver = GetGDALDriverManager()->GetDriverByName("Parquet");
     if (poDriver == NULL) {
-      QString msg = "Parquet driver not available in GDAL";
-      throw IException(IException::Programmer, msg, _FILEINFO_);
+      QString msg = "The GDAL Parquet driver is not available. Install the "
+                    "[libgdal-arrow-parquet] conda package to enable Parquet "
+                    "control network support.";
+      throw IException(IException::User, msg, _FILEINFO_);
     }
-    
-    GDALDataset *poDS = poDriver->Create(
-      netFile.expanded().toLatin1().data(),
-      0, 0, 0, GDT_Unknown, NULL
-    );
-    
+
+    GDALDataset *poDS = poDriver->Create(netFile.expanded().toLatin1().data(),
+                                         0, 0, 0, GDT_Unknown, NULL);
     if (poDS == NULL) {
       QString msg = "Failed to create Parquet file [" + netFile.name() + "]";
       throw IException(IException::Io, msg, _FILEINFO_);
     }
-    
+
     try {
-      // Create metadata layer
-      OGRLayer *metadataLayer = poDS->CreateLayer("metadata", NULL, wkbNone, NULL);
-      if (metadataLayer == NULL) {
-        GDALClose(poDS);
-        QString msg = "Failed to create metadata layer in Parquet file";
+      OGRLayer *layer = poDS->CreateLayer("controlnet", NULL, wkbNone, NULL);
+      if (layer == NULL) {
+        QString msg = "Failed to create layer in Parquet file [" + netFile.name() + "]";
         throw IException(IException::Io, msg, _FILEINFO_);
       }
-      
-      OGRFieldDefn oFieldNetworkId("networkId", OFTString);
-      OGRFieldDefn oFieldTargetName("targetName", OFTString);
-      OGRFieldDefn oFieldCreated("created", OFTString);
-      OGRFieldDefn oFieldLastModified("lastModified", OFTString);
-      OGRFieldDefn oFieldDescription("description", OFTString);
-      OGRFieldDefn oFieldUserName("userName", OFTString);
-      
-      metadataLayer->CreateField(&oFieldNetworkId);
-      metadataLayer->CreateField(&oFieldTargetName);
-      metadataLayer->CreateField(&oFieldCreated);
-      metadataLayer->CreateField(&oFieldLastModified);
-      metadataLayer->CreateField(&oFieldDescription);
-      metadataLayer->CreateField(&oFieldUserName);
-      
-      OGRFeature *metadataFeature = OGRFeature::CreateFeature(metadataLayer->GetLayerDefn());
-      metadataFeature->SetField("networkId", m_header.networkID.toLatin1().data());
-      metadataFeature->SetField("targetName", m_header.targetName.toLatin1().data());
-      metadataFeature->SetField("created", m_header.created.toLatin1().data());
-      metadataFeature->SetField("lastModified", m_header.lastModified.toLatin1().data());
-      metadataFeature->SetField("description", m_header.description.toLatin1().data());
-      metadataFeature->SetField("userName", m_header.userName.toLatin1().data());
-      
-      if (metadataLayer->CreateFeature(metadataFeature) != OGRERR_NONE) {
-        OGRFeature::DestroyFeature(metadataFeature);
-        GDALClose(poDS);
-        QString msg = "Failed to write metadata to Parquet file";
-        throw IException(IException::Io, msg, _FILEINFO_);
+
+      // ---- Define columns -------------------------------------------------
+      // Network header (repeated on every row)
+      const char *headerStr[] = {"networkId", "targetName", "created",
+                                 "lastModified", "description", "userName"};
+      for (const char *name : headerStr) {
+        OGRFieldDefn f(name, OFTString);
+        layer->CreateField(&f);
       }
-      OGRFeature::DestroyFeature(metadataFeature);
-      
-      // Create points layer
-      OGRLayer *pointsLayer = poDS->CreateLayer("points", NULL, wkbNone, NULL);
-      if (pointsLayer == NULL) {
-        GDALClose(poDS);
-        QString msg = "Failed to create points layer in Parquet file";
-        throw IException(IException::Io, msg, _FILEINFO_);
+
+      // Point columns (proto keys from ControlPointFileEntryV0002)
+      struct ColDef { const char *name; OGRFieldType type; };
+      const ColDef pointCols[] = {
+        {"id", OFTString}, {"type", OFTInteger}, {"chooserName", OFTString},
+        {"datetime", OFTString}, {"editLock", OFTInteger}, {"ignore", OFTInteger},
+        {"jigsawRejected", OFTInteger}, {"referenceIndex", OFTInteger},
+        {"aprioriSurfPointSource", OFTInteger}, {"aprioriSurfPointSourceFile", OFTString},
+        {"aprioriRadiusSource", OFTInteger}, {"aprioriRadiusSourceFile", OFTString},
+        {"aprioriX", OFTReal}, {"aprioriY", OFTReal}, {"aprioriZ", OFTReal},
+        {"aprioriCovar", OFTRealList},
+        {"adjustedX", OFTReal}, {"adjustedY", OFTReal}, {"adjustedZ", OFTReal},
+        {"adjustedCovar", OFTRealList}
+      };
+      for (const ColDef &c : pointCols) {
+        OGRFieldDefn f(c.name, c.type);
+        layer->CreateField(&f);
       }
-      
-      // Define point fields
-      OGRFieldDefn pointIdField("pointId", OFTString);
-      OGRFieldDefn pointTypeField("pointType", OFTString);
-      OGRFieldDefn chooserNameField("chooserName", OFTString);
-      OGRFieldDefn dateTimeField("dateTime", OFTString);
-      OGRFieldDefn editLockField("editLock", OFTInteger);
-      OGRFieldDefn ignoreField("ignore", OFTInteger);
-      OGRFieldDefn aprioriXField("aprioriX", OFTReal);
-      OGRFieldDefn aprioriYField("aprioriY", OFTReal);
-      OGRFieldDefn aprioriZField("aprioriZ", OFTReal);
-      OGRFieldDefn aprioriCovar0Field("aprioriCovar0", OFTReal);
-      OGRFieldDefn aprioriCovar1Field("aprioriCovar1", OFTReal);
-      OGRFieldDefn aprioriCovar2Field("aprioriCovar2", OFTReal);
-      OGRFieldDefn aprioriCovar3Field("aprioriCovar3", OFTReal);
-      OGRFieldDefn aprioriCovar4Field("aprioriCovar4", OFTReal);
-      OGRFieldDefn aprioriCovar5Field("aprioriCovar5", OFTReal);
-      OGRFieldDefn adjustedXField("adjustedX", OFTReal);
-      OGRFieldDefn adjustedYField("adjustedY", OFTReal);
-      OGRFieldDefn adjustedZField("adjustedZ", OFTReal);
-      OGRFieldDefn adjustedCovar0Field("adjustedCovar0", OFTReal);
-      OGRFieldDefn adjustedCovar1Field("adjustedCovar1", OFTReal);
-      OGRFieldDefn adjustedCovar2Field("adjustedCovar2", OFTReal);
-      OGRFieldDefn adjustedCovar3Field("adjustedCovar3", OFTReal);
-      OGRFieldDefn adjustedCovar4Field("adjustedCovar4", OFTReal);
-      OGRFieldDefn adjustedCovar5Field("adjustedCovar5", OFTReal);
-      
-      pointsLayer->CreateField(&pointIdField);
-      pointsLayer->CreateField(&pointTypeField);
-      pointsLayer->CreateField(&chooserNameField);
-      pointsLayer->CreateField(&dateTimeField);
-      pointsLayer->CreateField(&editLockField);
-      pointsLayer->CreateField(&ignoreField);
-      pointsLayer->CreateField(&aprioriXField);
-      pointsLayer->CreateField(&aprioriYField);
-      pointsLayer->CreateField(&aprioriZField);
-      pointsLayer->CreateField(&aprioriCovar0Field);
-      pointsLayer->CreateField(&aprioriCovar1Field);
-      pointsLayer->CreateField(&aprioriCovar2Field);
-      pointsLayer->CreateField(&aprioriCovar3Field);
-      pointsLayer->CreateField(&aprioriCovar4Field);
-      pointsLayer->CreateField(&aprioriCovar5Field);
-      pointsLayer->CreateField(&adjustedXField);
-      pointsLayer->CreateField(&adjustedYField);
-      pointsLayer->CreateField(&adjustedZField);
-      pointsLayer->CreateField(&adjustedCovar0Field);
-      pointsLayer->CreateField(&adjustedCovar1Field);
-      pointsLayer->CreateField(&adjustedCovar2Field);
-      pointsLayer->CreateField(&adjustedCovar3Field);
-      pointsLayer->CreateField(&adjustedCovar4Field);
-      pointsLayer->CreateField(&adjustedCovar5Field);
-      
-      // Create measures layer
-      OGRLayer *measuresLayer = poDS->CreateLayer("measures", NULL, wkbNone, NULL);
-      if (measuresLayer == NULL) {
-        GDALClose(poDS);
-        QString msg = "Failed to create measures layer in Parquet file";
-        throw IException(IException::Io, msg, _FILEINFO_);
+
+      // Measure columns (proto keys from the nested Measure submessage;
+      // colliding names get a "measure_" prefix)
+      const ColDef measureCols[] = {
+        {"serialnumber", OFTString}, {"measure_type", OFTInteger},
+        {"sample", OFTReal}, {"line", OFTReal},
+        {"sampleResidual", OFTReal}, {"lineResidual", OFTReal},
+        {"measure_chooserName", OFTString}, {"measure_datetime", OFTString},
+        {"measure_editLock", OFTInteger}, {"measure_ignore", OFTInteger},
+        {"measure_jigsawRejected", OFTInteger}, {"diameter", OFTReal},
+        {"apriorisample", OFTReal}, {"aprioriline", OFTReal},
+        {"samplesigma", OFTReal}, {"linesigma", OFTReal},
+        {"measure_logType", OFTIntegerList}, {"measure_logValue", OFTRealList}
+      };
+      for (const ColDef &c : measureCols) {
+        OGRFieldDefn f(c.name, c.type);
+        layer->CreateField(&f);
       }
-      
-      // Define measure fields
-      OGRFieldDefn measurePointIdField("pointId", OFTString);
-      OGRFieldDefn serialNumberField("serialNumber", OFTString);
-      OGRFieldDefn measureTypeField("measureType", OFTString);
-      OGRFieldDefn sampleField("sample", OFTReal);
-      OGRFieldDefn lineField("line", OFTReal);
-      OGRFieldDefn measureIgnoreField("ignore", OFTInteger);
-      OGRFieldDefn measureEditLockField("editLock", OFTInteger);
-      OGRFieldDefn jigsawRejectedField("jigsawRejected", OFTInteger);
-      OGRFieldDefn diameterField("diameter", OFTReal);
-      OGRFieldDefn apriorSampleField("apriorSample", OFTReal);
-      OGRFieldDefn apriorLineField("apriorLine", OFTReal);
-      OGRFieldDefn sampleSigmaField("sampleSigma", OFTReal);
-      OGRFieldDefn lineSigmaField("lineSigma", OFTReal);
-      OGRFieldDefn sampleResidualField("sampleResidual", OFTReal);
-      OGRFieldDefn lineResidualField("lineResidual", OFTReal);
-      
-      measuresLayer->CreateField(&measurePointIdField);
-      measuresLayer->CreateField(&serialNumberField);
-      measuresLayer->CreateField(&measureTypeField);
-      measuresLayer->CreateField(&sampleField);
-      measuresLayer->CreateField(&lineField);
-      measuresLayer->CreateField(&measureIgnoreField);
-      measuresLayer->CreateField(&measureEditLockField);
-      measuresLayer->CreateField(&jigsawRejectedField);
-      measuresLayer->CreateField(&diameterField);
-      measuresLayer->CreateField(&apriorSampleField);
-      measuresLayer->CreateField(&apriorLineField);
-      measuresLayer->CreateField(&sampleSigmaField);
-      measuresLayer->CreateField(&lineSigmaField);
-      measuresLayer->CreateField(&sampleResidualField);
-      measuresLayer->CreateField(&lineResidualField);
-      
-      // Write control points
+
+      OGRFeatureDefn *defn = layer->GetLayerDefn();
+
+      // ---- Write features -------------------------------------------------
       foreach (ControlPoint *controlPoint, m_points) {
-        OGRFeature *pointFeature = OGRFeature::CreateFeature(pointsLayer->GetLayerDefn());
-        
-        // Write required fields
-        pointFeature->SetField("pointId", controlPoint->GetId().toLatin1().data());
-        
-        QString pointType;
-        switch (controlPoint->GetType()) {
-          case ControlPoint::Fixed:
-            pointType = "Fixed";
-            break;
-          case ControlPoint::Constrained:
-            pointType = "Constrained";
-            break;
-          default:
-            pointType = "Free";
-            break;
+        if (controlPoint->GetId().isEmpty()) {
+          QString msg = "Unable to write control net to Parquet. "
+                        "Invalid control point has no point ID value.";
+          throw IException(IException::Unknown, msg, _FILEINFO_);
         }
-        pointFeature->SetField("pointType", pointType.toLatin1().data());
-        
-        // Write optional fields
-        if (QString::compare(controlPoint->GetChooserName(), "Null", Qt::CaseInsensitive) != 0) {
-          pointFeature->SetField("chooserName", controlPoint->GetChooserName().toLatin1().data());
+
+        // Build the protobuf message ONCE (shared mapping with the protobuf writer)
+        ControlPointFileEntryV0002 protoPoint;
+        fillPointProto(controlPoint, protoPoint);
+
+        // Template feature carrying the header + point columns; cloned per measure.
+        OGRFeature *tmpl = OGRFeature::CreateFeature(defn);
+
+        tmpl->SetField("networkId", m_header.networkID.toLatin1().data());
+        tmpl->SetField("targetName", m_header.targetName.toLatin1().data());
+        tmpl->SetField("created", m_header.created.toLatin1().data());
+        tmpl->SetField("lastModified", m_header.lastModified.toLatin1().data());
+        tmpl->SetField("description", m_header.description.toLatin1().data());
+        tmpl->SetField("userName", m_header.userName.toLatin1().data());
+
+        tmpl->SetField("id", protoPoint.id().c_str());
+        tmpl->SetField("type", (int) protoPoint.type());
+        if (protoPoint.has_choosername()) {
+          tmpl->SetField("chooserName", protoPoint.choosername().c_str());
         }
-        
-        if (QString::compare(controlPoint->GetDateTime(), "Null", Qt::CaseInsensitive) != 0) {
-          pointFeature->SetField("dateTime", controlPoint->GetDateTime().toLatin1().data());
+        if (protoPoint.has_datetime()) {
+          tmpl->SetField("datetime", protoPoint.datetime().c_str());
         }
-        
-        pointFeature->SetField("editLock", controlPoint->IsEditLocked() ? 1 : 0);
-        pointFeature->SetField("ignore", controlPoint->IsIgnored() ? 1 : 0);
-        
-        // Write a priori surface point
-        SurfacePoint aprioriSurfacePoint = controlPoint->GetAprioriSurfacePoint();
-        if (aprioriSurfacePoint.Valid()) {
-          pointFeature->SetField("aprioriX", aprioriSurfacePoint.GetX().meters());
-          pointFeature->SetField("aprioriY", aprioriSurfacePoint.GetY().meters());
-          pointFeature->SetField("aprioriZ", aprioriSurfacePoint.GetZ().meters());
-          
-          symmetric_matrix<double, upper> aprioriCovarianceMatrix = 
-            aprioriSurfacePoint.GetRectangularMatrix();
-          if (aprioriCovarianceMatrix.size1() > 0) {
-            pointFeature->SetField("aprioriCovar0", aprioriCovarianceMatrix(0, 0));
-            pointFeature->SetField("aprioriCovar1", aprioriCovarianceMatrix(0, 1));
-            pointFeature->SetField("aprioriCovar2", aprioriCovarianceMatrix(0, 2));
-            pointFeature->SetField("aprioriCovar3", aprioriCovarianceMatrix(1, 1));
-            pointFeature->SetField("aprioriCovar4", aprioriCovarianceMatrix(1, 2));
-            pointFeature->SetField("aprioriCovar5", aprioriCovarianceMatrix(2, 2));
-          }
+        if (protoPoint.has_editlock()) {
+          tmpl->SetField("editLock", protoPoint.editlock() ? 1 : 0);
         }
-        
-        // Write adjusted surface point
-        SurfacePoint adjustedSurfacePoint = controlPoint->GetAdjustedSurfacePoint();
-        if (adjustedSurfacePoint.Valid()) {
-          pointFeature->SetField("adjustedX", adjustedSurfacePoint.GetX().meters());
-          pointFeature->SetField("adjustedY", adjustedSurfacePoint.GetY().meters());
-          pointFeature->SetField("adjustedZ", adjustedSurfacePoint.GetZ().meters());
-          
-          symmetric_matrix<double, upper> adjustedCovarianceMatrix = 
-            adjustedSurfacePoint.GetRectangularMatrix();
-          if (adjustedCovarianceMatrix.size1() > 0) {
-            pointFeature->SetField("adjustedCovar0", adjustedCovarianceMatrix(0, 0));
-            pointFeature->SetField("adjustedCovar1", adjustedCovarianceMatrix(0, 1));
-            pointFeature->SetField("adjustedCovar2", adjustedCovarianceMatrix(0, 2));
-            pointFeature->SetField("adjustedCovar3", adjustedCovarianceMatrix(1, 1));
-            pointFeature->SetField("adjustedCovar4", adjustedCovarianceMatrix(1, 2));
-            pointFeature->SetField("adjustedCovar5", adjustedCovarianceMatrix(2, 2));
-          }
+        if (protoPoint.has_ignore()) {
+          tmpl->SetField("ignore", protoPoint.ignore() ? 1 : 0);
         }
-        
-        if (pointsLayer->CreateFeature(pointFeature) != OGRERR_NONE) {
-          OGRFeature::DestroyFeature(pointFeature);
-          GDALClose(poDS);
-          QString msg = "Failed to write control point to Parquet file";
-          throw IException(IException::Io, msg, _FILEINFO_);
+        if (protoPoint.has_jigsawrejected()) {
+          tmpl->SetField("jigsawRejected", protoPoint.jigsawrejected() ? 1 : 0);
         }
-        OGRFeature::DestroyFeature(pointFeature);
-        
-        // Write measures for this point
-        for (int j = 0; j < controlPoint->GetNumMeasures(); j++) {
-          const ControlMeasure &controlMeasure = *controlPoint->GetMeasure(j);
-          
-          OGRFeature *measureFeature = OGRFeature::CreateFeature(measuresLayer->GetLayerDefn());
-          
-          measureFeature->SetField("pointId", controlPoint->GetId().toLatin1().data());
-          measureFeature->SetField("serialNumber", controlMeasure.GetCubeSerialNumber().toLatin1().data());
-          
-          QString measureType;
-          switch (controlMeasure.GetType()) {
-            case ControlMeasure::Candidate:
-              measureType = "Candidate";
-              break;
-            case ControlMeasure::Manual:
-              measureType = "Manual";
-              break;
-            case ControlMeasure::RegisteredPixel:
-              measureType = "RegisteredPixel";
-              break;
-            case ControlMeasure::RegisteredSubPixel:
-              measureType = "RegisteredSubPixel";
-              break;
+        if (protoPoint.has_referenceindex()) {
+          tmpl->SetField("referenceIndex", protoPoint.referenceindex());
+        }
+        // Apriori source enums are always emitted by the protobuf writer.
+        tmpl->SetField("aprioriSurfPointSource", (int) protoPoint.apriorisurfpointsource());
+        tmpl->SetField("aprioriRadiusSource", (int) protoPoint.aprioriradiussource());
+        if (protoPoint.has_apriorisurfpointsourcefile()) {
+          tmpl->SetField("aprioriSurfPointSourceFile",
+                         protoPoint.apriorisurfpointsourcefile().c_str());
+        }
+        if (protoPoint.has_aprioriradiussourcefile()) {
+          tmpl->SetField("aprioriRadiusSourceFile",
+                         protoPoint.aprioriradiussourcefile().c_str());
+        }
+        if (protoPoint.has_apriorix()) {
+          tmpl->SetField("aprioriX", protoPoint.apriorix());
+          tmpl->SetField("aprioriY", protoPoint.aprioriy());
+          tmpl->SetField("aprioriZ", protoPoint.aprioriz());
+        }
+        if (protoPoint.aprioricovar_size() > 0) {
+          double covar[6];
+          for (int k = 0; k < protoPoint.aprioricovar_size() && k < 6; k++) {
+            covar[k] = protoPoint.aprioricovar(k);
           }
-          measureFeature->SetField("measureType", measureType.toLatin1().data());
-          
-          if (controlMeasure.GetSample() != Isis::Null) {
-            measureFeature->SetField("sample", controlMeasure.GetSample());
+          tmpl->SetField(defn->GetFieldIndex("aprioriCovar"),
+                         protoPoint.aprioricovar_size(), covar);
+        }
+        if (protoPoint.has_adjustedx()) {
+          tmpl->SetField("adjustedX", protoPoint.adjustedx());
+          tmpl->SetField("adjustedY", protoPoint.adjustedy());
+          tmpl->SetField("adjustedZ", protoPoint.adjustedz());
+        }
+        if (protoPoint.adjustedcovar_size() > 0) {
+          double covar[6];
+          for (int k = 0; k < protoPoint.adjustedcovar_size() && k < 6; k++) {
+            covar[k] = protoPoint.adjustedcovar(k);
           }
-          
-          if (controlMeasure.GetLine() != Isis::Null) {
-            measureFeature->SetField("line", controlMeasure.GetLine());
-          }
-          
-          measureFeature->SetField("ignore", controlMeasure.IsIgnored() ? 1 : 0);
-          measureFeature->SetField("editLock", controlMeasure.IsEditLocked() ? 1 : 0);
-          measureFeature->SetField("jigsawRejected", controlMeasure.IsRejected() ? 1 : 0);
-          
-          if (controlMeasure.GetDiameter() != Isis::Null) {
-            measureFeature->SetField("diameter", controlMeasure.GetDiameter());
-          }
-          
-          if (controlMeasure.GetAprioriSample() != Isis::Null) {
-            measureFeature->SetField("apriorSample", controlMeasure.GetAprioriSample());
-          }
-          
-          if (controlMeasure.GetAprioriLine() != Isis::Null) {
-            measureFeature->SetField("apriorLine", controlMeasure.GetAprioriLine());
-          }
-          
-          if (controlMeasure.GetSampleSigma() != Isis::Null) {
-            measureFeature->SetField("sampleSigma", controlMeasure.GetSampleSigma());
-          }
-          
-          if (controlMeasure.GetLineSigma() != Isis::Null) {
-            measureFeature->SetField("lineSigma", controlMeasure.GetLineSigma());
-          }
-          
-          if (controlMeasure.GetSampleResidual() != Isis::Null) {
-            measureFeature->SetField("sampleResidual", controlMeasure.GetSampleResidual());
-          }
-          
-          if (controlMeasure.GetLineResidual() != Isis::Null) {
-            measureFeature->SetField("lineResidual", controlMeasure.GetLineResidual());
-          }
-          
-          if (measuresLayer->CreateFeature(measureFeature) != OGRERR_NONE) {
-            OGRFeature::DestroyFeature(measureFeature);
-            GDALClose(poDS);
-            QString msg = "Failed to write control measure to Parquet file";
+          tmpl->SetField(defn->GetFieldIndex("adjustedCovar"),
+                         protoPoint.adjustedcovar_size(), covar);
+        }
+
+        if (protoPoint.measures_size() == 0) {
+          // A point with no measures still gets one row.
+          if (layer->CreateFeature(tmpl) != OGRERR_NONE) {
+            OGRFeature::DestroyFeature(tmpl);
+            QString msg = "Failed to write control point [" +
+                          QString::fromStdString(protoPoint.id()) + "] to Parquet file";
             throw IException(IException::Io, msg, _FILEINFO_);
           }
-          OGRFeature::DestroyFeature(measureFeature);
         }
+        else {
+          for (int m = 0; m < protoPoint.measures_size(); m++) {
+            const ControlPointFileEntryV0002_Measure &pm = protoPoint.measures(m);
+            OGRFeature *row = tmpl->Clone();
+
+            row->SetField("serialnumber", pm.serialnumber().c_str());
+            row->SetField("measure_type", (int) pm.type());
+            if (pm.has_sample())         row->SetField("sample", pm.sample());
+            if (pm.has_line())           row->SetField("line", pm.line());
+            if (pm.has_sampleresidual()) row->SetField("sampleResidual", pm.sampleresidual());
+            if (pm.has_lineresidual())   row->SetField("lineResidual", pm.lineresidual());
+            if (pm.has_choosername())    row->SetField("measure_chooserName", pm.choosername().c_str());
+            if (pm.has_datetime())       row->SetField("measure_datetime", pm.datetime().c_str());
+            if (pm.has_editlock())       row->SetField("measure_editLock", pm.editlock() ? 1 : 0);
+            if (pm.has_ignore())         row->SetField("measure_ignore", pm.ignore() ? 1 : 0);
+            if (pm.has_jigsawrejected()) row->SetField("measure_jigsawRejected", pm.jigsawrejected() ? 1 : 0);
+            if (pm.has_diameter())       row->SetField("diameter", pm.diameter());
+            if (pm.has_apriorisample())  row->SetField("apriorisample", pm.apriorisample());
+            if (pm.has_aprioriline())    row->SetField("aprioriline", pm.aprioriline());
+            if (pm.has_samplesigma())    row->SetField("samplesigma", pm.samplesigma());
+            if (pm.has_linesigma())      row->SetField("linesigma", pm.linesigma());
+
+            if (pm.log_size() > 0) {
+              std::vector<int> logType(pm.log_size());
+              std::vector<double> logValue(pm.log_size());
+              for (int k = 0; k < pm.log_size(); k++) {
+                logType[k]  = pm.log(k).doubledatatype();
+                logValue[k] = pm.log(k).doubledatavalue();
+              }
+              row->SetField(defn->GetFieldIndex("measure_logType"),
+                            pm.log_size(), logType.data());
+              row->SetField(defn->GetFieldIndex("measure_logValue"),
+                            pm.log_size(), logValue.data());
+            }
+
+            if (layer->CreateFeature(row) != OGRERR_NONE) {
+              OGRFeature::DestroyFeature(row);
+              OGRFeature::DestroyFeature(tmpl);
+              QString msg = "Failed to write control measure for point [" +
+                            QString::fromStdString(protoPoint.id()) + "] to Parquet file";
+              throw IException(IException::Io, msg, _FILEINFO_);
+            }
+            OGRFeature::DestroyFeature(row);
+          }
+        }
+        OGRFeature::DestroyFeature(tmpl);
       }
-      
+
       GDALClose(poDS);
     }
     catch (IException &e) {
@@ -2689,4 +2350,191 @@ namespace Isis {
       throw IException(IException::Io, msg, _FILEINFO_);
     }
   }
+
+
+  /**
+   * Read a control network from a Parquet file written by writeParquet().
+   *
+   * The single flattened layer has one row per measure with the parent point's
+   * columns repeated. Rows for a given point are contiguous, so we group
+   * consecutive rows by the "id" column. For each group we rebuild a
+   * ControlPointFileEntryV0002 (the same message the protobuf reader uses) and hand
+   * it to createPoint(), inheriting all enum decoding, covariance assembly,
+   * reference-measure handling, and constraint derivation for free. No
+   * ControlPoint/ControlMeasure setters are called outside createPoint/createMeasure.
+   *
+   * @param netFile The Parquet file to read.
+   * @param progress The progress object to track reading points.
+   */
+  void ControlNetVersioner::readParquet(const FileName netFile, Progress *progress) {
+    GDALAllRegister();
+
+    GDALDataset *poDS = (GDALDataset *) GDALOpenEx(netFile.expanded().toLatin1().data(),
+                                                   GDAL_OF_VECTOR | GDAL_OF_READONLY,
+                                                   NULL, NULL, NULL);
+    if (poDS == NULL) {
+      QString msg = "Failed to open Parquet control network file [" + netFile.name() + "]";
+      throw IException(IException::Io, msg, _FILEINFO_);
+    }
+
+    try {
+      OGRLayer *layer = poDS->GetLayer(0);
+      if (layer == NULL) {
+        QString msg = "Parquet file [" + netFile.name() + "] contains no layer";
+        throw IException(IException::Io, msg, _FILEINFO_);
+      }
+      OGRFeatureDefn *defn = layer->GetLayerDefn();
+
+      // Cache field indices (-1 if absent) so a column rename or omission is handled.
+      auto idx = [&](const char *name) { return defn->GetFieldIndex(name); };
+      const int iNetworkId = idx("networkId"), iTargetName = idx("targetName"),
+                iCreated = idx("created"), iLastModified = idx("lastModified"),
+                iDescription = idx("description"), iUserName = idx("userName");
+
+      bool headerSet = false;
+      QSharedPointer<ControlPointFileEntryV0002> newPoint;
+      QString currentId;
+
+      auto isSet = [](OGRFeature *f, int i) {
+        return i >= 0 && f->IsFieldSetAndNotNull(i);
+      };
+
+      // Finalize the in-progress point into a ControlPoint.
+      auto flushPoint = [&]() {
+        if (!newPoint.isNull()) {
+          ControlPointV0005 point(newPoint);
+          m_points.append( createPoint(point) );
+          newPoint.clear();
+          if (progress) {
+            progress->CheckStatus();
+          }
+        }
+      };
+
+      if (progress) {
+        progress->SetText("Reading Control Points");
+        progress->SetMaximumSteps(layer->GetFeatureCount());
+        progress->CheckStatus();
+      }
+
+      layer->ResetReading();
+      OGRFeature *poFeature = NULL;
+      while ((poFeature = layer->GetNextFeature()) != NULL) {
+        // Header (read once from the first row's repeated columns).
+        if (!headerSet) {
+          if (isSet(poFeature, iNetworkId))    m_header.networkID = poFeature->GetFieldAsString(iNetworkId);
+          if (isSet(poFeature, iTargetName))   m_header.targetName = poFeature->GetFieldAsString(iTargetName);
+          if (isSet(poFeature, iCreated))      m_header.created = poFeature->GetFieldAsString(iCreated);
+          if (isSet(poFeature, iLastModified)) m_header.lastModified = poFeature->GetFieldAsString(iLastModified);
+          if (isSet(poFeature, iDescription))  m_header.description = poFeature->GetFieldAsString(iDescription);
+          if (isSet(poFeature, iUserName))     m_header.userName = poFeature->GetFieldAsString(iUserName);
+          createHeader(m_header);
+          headerSet = true;
+        }
+
+        int iId = idx("id");
+        QString rowId = isSet(poFeature, iId) ? poFeature->GetFieldAsString(iId) : QString();
+
+        // Start of a new point: flush the previous one and populate point columns.
+        if (newPoint.isNull() || rowId != currentId) {
+          flushPoint();
+          currentId = rowId;
+          newPoint = QSharedPointer<ControlPointFileEntryV0002>(new ControlPointFileEntryV0002);
+
+          newPoint->set_id(rowId.toLatin1().data());
+          { int i = idx("type"); if (isSet(poFeature, i))
+              newPoint->set_type((ControlPointFileEntryV0002_PointType) poFeature->GetFieldAsInteger(i)); }
+          { int i = idx("chooserName"); if (isSet(poFeature, i))
+              newPoint->set_choosername(poFeature->GetFieldAsString(i)); }
+          { int i = idx("datetime"); if (isSet(poFeature, i))
+              newPoint->set_datetime(poFeature->GetFieldAsString(i)); }
+          { int i = idx("editLock"); if (isSet(poFeature, i))
+              newPoint->set_editlock(poFeature->GetFieldAsInteger(i) != 0); }
+          { int i = idx("ignore"); if (isSet(poFeature, i))
+              newPoint->set_ignore(poFeature->GetFieldAsInteger(i) != 0); }
+          { int i = idx("jigsawRejected"); if (isSet(poFeature, i))
+              newPoint->set_jigsawrejected(poFeature->GetFieldAsInteger(i) != 0); }
+          { int i = idx("referenceIndex"); if (isSet(poFeature, i))
+              newPoint->set_referenceindex(poFeature->GetFieldAsInteger(i)); }
+          { int i = idx("aprioriSurfPointSource"); if (isSet(poFeature, i))
+              newPoint->set_apriorisurfpointsource((ControlPointFileEntryV0002_AprioriSource) poFeature->GetFieldAsInteger(i)); }
+          { int i = idx("aprioriSurfPointSourceFile"); if (isSet(poFeature, i))
+              newPoint->set_apriorisurfpointsourcefile(poFeature->GetFieldAsString(i)); }
+          { int i = idx("aprioriRadiusSource"); if (isSet(poFeature, i))
+              newPoint->set_aprioriradiussource((ControlPointFileEntryV0002_AprioriSource) poFeature->GetFieldAsInteger(i)); }
+          { int i = idx("aprioriRadiusSourceFile"); if (isSet(poFeature, i))
+              newPoint->set_aprioriradiussourcefile(poFeature->GetFieldAsString(i)); }
+          { int i = idx("aprioriX"); if (isSet(poFeature, i)) newPoint->set_apriorix(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("aprioriY"); if (isSet(poFeature, i)) newPoint->set_aprioriy(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("aprioriZ"); if (isSet(poFeature, i)) newPoint->set_aprioriz(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("aprioriCovar"); if (isSet(poFeature, i)) {
+              int n = 0; const double *vals = poFeature->GetFieldAsDoubleList(i, &n);
+              for (int k = 0; k < n; k++) newPoint->add_aprioricovar(vals[k]); } }
+          { int i = idx("adjustedX"); if (isSet(poFeature, i)) newPoint->set_adjustedx(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("adjustedY"); if (isSet(poFeature, i)) newPoint->set_adjustedy(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("adjustedZ"); if (isSet(poFeature, i)) newPoint->set_adjustedz(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("adjustedCovar"); if (isSet(poFeature, i)) {
+              int n = 0; const double *vals = poFeature->GetFieldAsDoubleList(i, &n);
+              for (int k = 0; k < n; k++) newPoint->add_adjustedcovar(vals[k]); } }
+        }
+
+        // Add a measure for this row when the (required) serialnumber is present.
+        int iSerial = idx("serialnumber");
+        if (isSet(poFeature, iSerial)) {
+          ControlPointFileEntryV0002_Measure *pm = newPoint->add_measures();
+          pm->set_serialnumber(poFeature->GetFieldAsString(iSerial));
+          { int i = idx("measure_type"); if (isSet(poFeature, i))
+              pm->set_type((ControlPointFileEntryV0002_Measure_MeasureType) poFeature->GetFieldAsInteger(i)); }
+          { int i = idx("sample"); if (isSet(poFeature, i)) pm->set_sample(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("line"); if (isSet(poFeature, i)) pm->set_line(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("sampleResidual"); if (isSet(poFeature, i)) pm->set_sampleresidual(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("lineResidual"); if (isSet(poFeature, i)) pm->set_lineresidual(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("measure_chooserName"); if (isSet(poFeature, i)) pm->set_choosername(poFeature->GetFieldAsString(i)); }
+          { int i = idx("measure_datetime"); if (isSet(poFeature, i)) pm->set_datetime(poFeature->GetFieldAsString(i)); }
+          { int i = idx("measure_editLock"); if (isSet(poFeature, i)) pm->set_editlock(poFeature->GetFieldAsInteger(i) != 0); }
+          { int i = idx("measure_ignore"); if (isSet(poFeature, i)) pm->set_ignore(poFeature->GetFieldAsInteger(i) != 0); }
+          { int i = idx("measure_jigsawRejected"); if (isSet(poFeature, i)) pm->set_jigsawrejected(poFeature->GetFieldAsInteger(i) != 0); }
+          { int i = idx("diameter"); if (isSet(poFeature, i)) pm->set_diameter(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("apriorisample"); if (isSet(poFeature, i)) pm->set_apriorisample(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("aprioriline"); if (isSet(poFeature, i)) pm->set_aprioriline(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("samplesigma"); if (isSet(poFeature, i)) pm->set_samplesigma(poFeature->GetFieldAsDouble(i)); }
+          { int i = idx("linesigma"); if (isSet(poFeature, i)) pm->set_linesigma(poFeature->GetFieldAsDouble(i)); }
+          { int iT = idx("measure_logType"), iV = idx("measure_logValue");
+            if (isSet(poFeature, iT) && isSet(poFeature, iV)) {
+              int nt = 0, nv = 0;
+              const int *lt = poFeature->GetFieldAsIntegerList(iT, &nt);
+              const double *lv = poFeature->GetFieldAsDoubleList(iV, &nv);
+              int n = (nt < nv) ? nt : nv;
+              for (int k = 0; k < n; k++) {
+                ControlPointFileEntryV0002_Measure_MeasureLogData *log = pm->add_log();
+                log->set_doubledatatype(lt[k]);
+                log->set_doubledatavalue(lv[k]);
+              }
+            }
+          }
+        }
+
+        OGRFeature::DestroyFeature(poFeature);
+      }
+      flushPoint();
+
+      if (!headerSet) {
+        // Empty network: still establish the header (target fixup, etc.).
+        createHeader(m_header);
+      }
+
+      GDALClose(poDS);
+    }
+    catch (IException &e) {
+      GDALClose(poDS);
+      QString msg = "Failed to read Parquet control network file [" + netFile.name() + "]";
+      throw IException(e, IException::Io, msg, _FILEINFO_);
+    }
+    catch (...) {
+      GDALClose(poDS);
+      QString msg = "Unknown error reading Parquet control network file [" + netFile.name() + "]";
+      throw IException(IException::Io, msg, _FILEINFO_);
+    }
+  }
+
 }
