@@ -15,14 +15,16 @@ find files of those names at the top level of this repository. **/
 #include "FileName.h"
 #include "ProcessImportPds.h"
 #include "Pvl.h"
+#include "PvlContainer.h"
 #include "PvlKeyword.h"
 #include "PvlGroup.h"
+#include "Table.h"
 #include "UserInterface.h"
 
 using namespace Isis;
 using namespace std;
 
-void addTableKeywords(Pvl *isisLabel, Pvl pdsLabelPvl);
+void addTableKeywords(PvlObject &tableLabel, PvlObject pdsTableLabel);
 
 void IsisMain() {
   // Get user interface
@@ -48,10 +50,18 @@ void IsisMain() {
   // translate the band bin and archive groups to this pvl
   p.TranslatePdsLabels(otherGroups);
 
-  p.ImportTable("INSTRUMENT_POINTING_TABLE");
-  p.ImportTable("INSTRUMENT_POSITION_TABLE");
-  p.ImportTable("SUN_POSITION_TABLE");
-  p.ImportTable("BODY_ROTATION_TABLE");
+  // Import the requested tables
+  std::vector<QString> tables = {"INSTRUMENT_POINTING_TABLE",
+                                 "INSTRUMENT_POSITION_TABLE",
+                                 "SUN_POSITION_TABLE",
+                                 "BODY_ROTATION_TABLE"};
+  for (QString table : tables) {
+    Table &importedTable = p.ImportTable(table);
+    PvlObject &isisTableLabel = importedTable.Label();
+    PvlObject pdsTableLabel = pdsLabelPvl.findObject(table);
+    addTableKeywords(isisTableLabel, pdsTableLabel);
+  }
+
   p.StartProcess();
 
   // add translated values from band bin and archive groups to the output cube
@@ -112,88 +122,33 @@ void IsisMain() {
     isisCubeObject += alphaCube;
   }
 
-  addTableKeywords(isisLabel, pdsLabelPvl);
   p.EndProcess();
 }
 
 /**
- * This method will add the appropriate keywords from the TABLE objects of the
- * input labels to the Table objects in output Isis labels.
+ * This method will add the appropriate keywords from the TABLE object of the
+ * input labels to the Table object in output Isis labels.
  *
- * @param isisLabel Pointer to the output file's label
- * @param pdsLabelPvl A Pvl containing the input pds file's label.
+ * @param tableLabel Reference to the output file's table label
+ * @param pdsTableLabel A PvlObject containing the input pds file's table label.
  *
  */
-void addTableKeywords(Pvl *isisLabel, Pvl pdsLabelPvl) {
-  // add keywords to appropriate tables
-   for (int i = 0; i < isisLabel->objects(); i++) {
-     if (isisLabel->object(i).name() == "Table") {
-       PvlKeyword keyword;
-       if (QString(isisLabel->object(i)["Name"]) == "InstrumentPointing") {
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POINTING_TABLE")["TIME_DEPENDENT_FRAMES"];
-         keyword.setName("TimeDependentFrames");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POINTING_TABLE")["CONSTANT_FRAMES"];
-         keyword.setName("ConstantFrames");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POINTING_TABLE")["CONSTANT_ROTATION"];
-         keyword.setName("ConstantRotation");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POINTING_TABLE")["CK_TABLE_START_TIME"];
-         keyword.setName("CkTableStartTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POINTING_TABLE")["CK_TABLE_END_TIME"];
-         keyword.setName("CkTableEndTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POINTING_TABLE")["CK_TABLE_ORIGINAL_SIZE"];
-         keyword.setName("CkTableOriginalSize");
-         isisLabel->object(i) += keyword;
-       }
-       if (QString(isisLabel->object(i)["Name"]) == "InstrumentPosition") {
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POSITION_TABLE")["CACHE_TYPE"];
-         keyword.setName("CacheType");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POSITION_TABLE")["SPK_TABLE_START_TIME"];
-         keyword.setName("SpkTableStartTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POSITION_TABLE")["SPK_TABLE_END_TIME"];
-         keyword.setName("SpkTableEndTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("INSTRUMENT_POSITION_TABLE")["SPK_TABLE_ORIGINAL_SIZE"];
-         keyword.setName("SpkTableOriginalSize");
-         isisLabel->object(i) += keyword;
-       }
-       if (QString(isisLabel->object(i)["Name"]) == "BodyRotation") {
-         keyword = pdsLabelPvl.findObject("BODY_ROTATION_TABLE")["TIME_DEPENDENT_FRAMES"];
-         keyword.setName("TimeDependentFrames");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("BODY_ROTATION_TABLE")["CK_TABLE_START_TIME"];
-         keyword.setName("CkTableStartTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("BODY_ROTATION_TABLE")["CK_TABLE_END_TIME"];
-         keyword.setName("CkTableEndTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("BODY_ROTATION_TABLE")["CK_TABLE_ORIGINAL_SIZE"];
-         keyword.setName("CkTableOriginalSize");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("BODY_ROTATION_TABLE")["SOLAR_LONGITUDE"];
-         keyword.setName("SolarLongitude");
-         isisLabel->object(i) += keyword;
-       }
-       if (QString(isisLabel->object(i)["Name"]) == "SunPosition") {
-         keyword = pdsLabelPvl.findObject("SUN_POSITION_TABLE")["CACHE_TYPE"];
-         keyword.setName("CacheType");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("SUN_POSITION_TABLE")["SPK_TABLE_START_TIME"];
-         keyword.setName("SpkTableStartTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("SUN_POSITION_TABLE")["SPK_TABLE_END_TIME"];
-         keyword.setName("SpkTableEndTime");
-         isisLabel->object(i) += keyword;
-         keyword = pdsLabelPvl.findObject("SUN_POSITION_TABLE")["SPK_TABLE_ORIGINAL_SIZE"];
-         keyword.setName("SpkTableOriginalSize");
-         isisLabel->object(i) += keyword;
-       }
-     }
-   }
+void addTableKeywords(PvlObject &tableLabel, PvlObject pdsTableLabel) {
+  QStringList ingnoredKeywords = {"INTERCHANGE_FORMAT", "ROWS", "COLUMNS", "ROW_BYTES", "ROW_SUFFIX_BYTES"};
+  for (PvlContainer::ConstPvlKeywordIterator keywordIt = pdsTableLabel.begin(); keywordIt != pdsTableLabel.end(); keywordIt++) {
+    if (ingnoredKeywords.contains(keywordIt->name())) {
+      continue;
+    }
+    PvlKeyword newKeyword(*keywordIt);
+    QString keywordName = newKeyword.name();
+
+    QString upperCamelCaseName;
+    QStringList parts = keywordName.split('_', Qt::SkipEmptyParts);
+    for (QString part : parts) {
+      upperCamelCaseName += part.at(0).toUpper() + part.mid(1).toLower();
+    }
+
+    newKeyword.setName(upperCamelCaseName);
+    tableLabel += newKeyword;
+  }
 }

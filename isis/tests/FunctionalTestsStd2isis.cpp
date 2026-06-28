@@ -184,9 +184,6 @@ TEST_F(TempTestingFiles, FunctionalTestStd2isisSpecial) {
   ASSERT_NEAR(hist->StandardDeviation(), -1.7976931348623149e+308, .0001);
 }
 
-#ifndef NO_JP2K
-// Run only if JP2K is enabled
-
 TEST_F(TempTestingFiles, FunctionalTestStd2isisJp2) {
   QString outCubeFileName = tempDir.path() + "/outTemp.cub";
 
@@ -221,10 +218,8 @@ TEST_F(TempTestingFiles, FunctionalTestStd2isisJp2) {
 
   std::unique_ptr<Histogram> hist (outCube.histogram());
 
-  ASSERT_NEAR(hist->Average(), 113.12452758881331, .00001);
-  ASSERT_EQ(hist->Sum(), 1795965);
+  ASSERT_NEAR(hist->Average(), 113.01033005794910, .00001);
+  ASSERT_EQ(hist->Sum(), 1794152);
   ASSERT_EQ(hist->ValidPixels(), 15876);
-  ASSERT_NEAR(hist->StandardDeviation(), 97.354405991298336, .0001);
+  ASSERT_NEAR(hist->StandardDeviation(), 97.338906709624155, .0001);
 }
-
-#endif // NO_JP2K

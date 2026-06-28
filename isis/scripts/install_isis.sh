@@ -347,7 +347,7 @@ fi
 if [ "$ENV_NAME" = "auto" ]; then
     # Get latest version from specified channels
     LATEST_VERSION=$(conda search $PACKAGE_NAME | grep -E "^isis\s+" | tail -n 1 | awk '{print $2}')
-    ENV_NAME="isis-$LATEST_VERSION"
+    ENV_NAME="isis$LATEST_VERSION"
 fi
 
 # Handle the --install-prefix flag
@@ -369,7 +369,7 @@ ENV_PATH=$INSTALL_PREFIX
 echo "Installing ISIS at $INSTALL_PREFIX"
 
 # Check if the environment already exists 
-if [ $CLIENT env list | grep -qE "^$ENV_NAME[ ]." ] || [ -d $INSTALL_PREFIX ]; then 
+if $CLIENT env list | grep -qE "^$ENV_NAME[[:space:]]" || [ -d "$INSTALL_PREFIX" ]; then 
     if [ "$FORCE_INSTALL" = "YES" ]; then
         echo "Force flag is set. Removing existing environment [$ENV_NAME]"
         $CLIENT remove -p $INSTALL_PREFIX --all -y || failed_command "Remove existing environment"
@@ -553,13 +553,13 @@ if [ ! "$DOWNLOAD_DATA" = "NO" ]; then
     fi
 fi
 
-# Run isisvarinit.py with ISISDATA and ISISROOT
-if [ -x "$INSTALL_PREFIX/isis/scripts/isisVarInit.py" ]; then
+# Run isisVarInit.py with ISISDATA and ISISROOT
+if [ -x "$INSTALL_PREFIX/scripts/isisVarInit.py" ]; then
     ISISROOT="$INSTALL_PREFIX"
     ISISDATA="$ISISDATA_PREFIX"
-    "$INSTALL_PREFIX/isis/scripts/isisVarInit.py" "$ISISDATA" "$ISISROOT" || failed_command "Running isisvarinit.py"
+    python "$INSTALL_PREFIX/scripts/isisVarInit.py" -d "$ISISDATA" || failed_command "Running isisVarInit.py"
 else
-    echo "Warning: isisvarinit.py not found or not executable in $INSTALL_PREFIX/isis/scripts/"
+    echo "Warning: isisVarInit.py not found or not executable in $INSTALL_PREFIX/scripts/"
 fi
 
 printf "\n\n"

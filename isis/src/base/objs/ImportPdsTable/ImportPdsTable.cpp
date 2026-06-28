@@ -12,8 +12,11 @@ find files of those names at the top level of this repository. **/
 #include <sstream>
 
 #include <QDebug>
+#include <QRegularExpression>
 #include <QScopedPointer>
 #include <QString>
+
+#include "cpl_vsi.h"
 
 #include "EndianSwapper.h"
 #include "FileName.h"
@@ -536,17 +539,36 @@ namespace Isis {
     //  Vet the filename.  Many PDS files record the filename in uppercase and
     //  in practice, the filename is in lowercase.  Do this check here.
     QString tempTblFile(pdsTableFile);
-    TextFile tfile(tempTblFile);
-    QString tline;
+
+    // Open the file using GDAL's VSI API to support remote URLs (e.g., /vsicurl/https://...)
+    VSILFILE *fp = VSIFOpenL(tempTblFile.toLatin1().data(), "rb");
+    if (fp == nullptr) {
+      QString msg = "Unable to open PDS table file [" + tempTblFile + "]";
+      throw IException(IException::Io, msg, _FILEINFO_);
+    }
+
     m_rows.clear();
     int irow(0);
-    while (tfile.GetLine(tline, false)) {
-      if (irow >= m_trows) break;
 
-      (void) processRow(irow, tline);
+    try {
+      // Read the file line by line
+      const char *line = nullptr;
+      while ((line = CPLReadLineL(fp)) != nullptr) {
+        if (irow >= m_trows) break;
 
-      irow++;
+        QString tline = QString::fromUtf8(line);
+        (void) processRow(irow, tline);
+
+        irow++;
+      }
     }
+    catch (...) {
+      // Ensure file is closed even if an exception occurs
+      VSIFCloseL(fp);
+      throw;
+    }
+
+    VSIFCloseL(fp);
     return;
   }
 
@@ -757,7 +779,7 @@ namespace Isis {
    * @return QString Returns the formatted keyword
    */
   QString  ImportPdsTable::getFormattedName(const QString &colname) const {
-    QString cname = QString(colname).replace(QRegExp("[(),]"), " ").simplified();
+    QString cname = QString(colname).replace(QRegularExpression("[(),]"), " ").simplified();
 
     bool uppercase = true;
     QString oString;

@@ -47,7 +47,7 @@ namespace Isis {
     p_parent = parent;
     p_dir.setPath("/thisDirDoesNotExist!");
     p_open = new QAction(parent);
-    p_open->setShortcut(Qt::CTRL + Qt::Key_O);
+    p_open->setShortcut(Qt::CTRL | Qt::Key_O);
     p_open->setText("&Open...");
     p_open->setIcon(QPixmap(toolIconDir() + "/fileopen.png"));
     p_open->setToolTip("Open cube");
@@ -60,7 +60,7 @@ namespace Isis {
     connect(p_open, SIGNAL(triggered()), this, SLOT(open()));
 
     p_browse = new QAction(parent);
-    p_browse->setShortcut(Qt::CTRL + Qt::Key_B);
+    p_browse->setShortcut(Qt::CTRL | Qt::Key_B);
     p_browse->setText("&Browse...");
     p_browse->setToolTip("Browse cubes");
     whatsThis =
@@ -70,7 +70,7 @@ namespace Isis {
     connect(p_browse, SIGNAL(triggered()), this, SLOT(browse()));
 
     p_save = new QAction(parent);
-    p_save->setShortcut(Qt::CTRL + Qt::Key_S);
+    p_save->setShortcut(Qt::CTRL | Qt::Key_S);
     p_save->setText("&Save");
     p_save->setIcon(QPixmap(toolIconDir() + "/filesave.png"));
     p_save->setToolTip("Save");
@@ -127,7 +127,7 @@ namespace Isis {
 
     p_print = new QAction(parent);
     p_print->setText("&Print...");
-    p_print->setShortcut(Qt::CTRL + Qt::Key_P);
+    p_print->setShortcut(Qt::CTRL | Qt::Key_P);
     p_print->setIcon(QPixmap(toolIconDir() + "/fileprint.png"));
     p_print->setToolTip("Print");
     whatsThis =
@@ -145,7 +145,7 @@ namespace Isis {
     p_closeAll->setWhatsThis(whatsThis);
 
     p_exit = new QAction(this);
-    p_exit->setShortcut(Qt::CTRL + Qt::Key_Q);
+    p_exit->setShortcut(Qt::CTRL | Qt::Key_Q);
     p_exit->setText("E&xit");
     p_exit->setIcon(QPixmap(toolIconDir() + "/fileclose.png"));
     whatsThis =
@@ -214,8 +214,8 @@ namespace Isis {
    */
   void FileTool::open() {
     //Set up the list of filters that are default with this dialog.
-    if (!p_filterList.contains("Isis cubes (*.cub)")) {
-      p_filterList.append("Isis cubes (*.cub)");
+    if (!p_filterList.contains("Isis cubes (*.cub *.tif *.tiff)")) {
+      p_filterList.append("Isis cubes (*.cub *.tif *.tiff)");
       p_filterList.append("All files (*)");
     }
     if (!p_dir.exists()) {
@@ -235,8 +235,8 @@ namespace Isis {
    */
   void FileTool::browse() {
     //Set up the list of filters that are default with this dialog.
-    if (!p_filterList.contains("Isis cubes (*.cub)")) {
-      p_filterList.append("Isis cubes (*.cub)");
+    if (!p_filterList.contains("Isis cubes (*.cub *.tif *.tiff)")) {
+      p_filterList.append("Isis cubes (*.cub *.tif *.tiff)");
       p_filterList.append("All files (*)");
     }
     if (!p_dir.exists()) {
@@ -288,8 +288,8 @@ namespace Isis {
       return;
     }
     //Set up the list of filters that are default with this dialog.
-    if (!p_filterList.contains("Isis cubes (*.cub)")) {
-      p_filterList.append("Isis cubes (*.cub)");
+    if (!p_filterList.contains("Isis cubes (*.cub *.tif *.tiff)")) {
+      p_filterList.append("Isis cubes (*.cub *.tif *.tiff)");
     }
     if (!p_dir.exists()) {
       p_dir = QDir(p_lastDir);
@@ -889,15 +889,15 @@ namespace Isis {
       }
 
       QFile outputFile(fileName);
-      outputFile.open(QIODevice::WriteOnly | QIODevice::Text);
+      if (outputFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        QTextStream out(&outputFile);
 
-      QTextStream out(&outputFile);
-
-      // Write each cube filename onto it's own line inside of that file.
-      for (int i = 0; i < cubeFilePaths.size(); i++){
-          out << cubeFilePaths.value(i) << "\n";
+        // Write each cube filename onto it's own line inside of that file.
+        for (int i = 0; i < cubeFilePaths.size(); i++){
+            out << cubeFilePaths.value(i) << "\n";
+        }
+        outputFile.close();
       }
-      outputFile.close();
   }
 
 

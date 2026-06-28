@@ -123,7 +123,7 @@ namespace Isis {
         AbstractPlotTool::createToolBarWidget(parent);
 
     QHBoxLayout *layout = new QHBoxLayout(wrapper);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_rubberBandCombo);
     layout->addWidget(new QLabel("Interpolation:"));
     layout->addWidget(m_interpolationCombo);
@@ -290,13 +290,7 @@ namespace Isis {
     SurfacePoint result;
 
     if (groundMap) {
-      Distance radius;
-
-      if (groundMap->Camera())
-        radius = groundMap->Camera()->LocalRadius();
-      else if (groundMap->Projection())
-        radius = Distance(groundMap->Projection()->LocalRadius(), Distance::Meters);
-
+      Distance radius(groundMap->LocalRadius(), Distance::Units::Meters);
       result = SurfacePoint(Latitude(groundMap->UniversalLatitude(), Angle::Degrees),
           Longitude(groundMap->UniversalLongitude(), Angle::Degrees), radius);
     }

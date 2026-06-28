@@ -76,10 +76,10 @@ namespace Isis {
 
     // try to use US locale for numbers so we don't end up printing "," instead
     //   of "." where it might count.
-    setlocale(LC_ALL, "en_US");
+    setlocale(LC_ALL, "en_US.UTF-8");
 
     char env[1024];
-    strncpy(env, "LANG=en_US", 1023);
+    strncpy(env, "LANG=en_US.UTF-8", 1023);
     putenv(env);
 
     // add qt path to 3rdParty so no default is taken from enviroment
@@ -131,13 +131,13 @@ namespace Isis {
           new QApplication(argc, argv);
           // When QApplication is initialized, it will reset the locale to the shells locale. As a result
           // the locale needs to be reset after QApplications initialization.
-          setlocale(LC_ALL, "en_US");
+          setlocale(LC_ALL, "en_US.UTF-8");
         }
         else {
           new QCoreApplication(argc, argv);
           // When QCoreApplication is initialized, it will reset the locale to the shells locale. As a result
           // the locale needs to be reset after QCoreApplications initialization.
-          setlocale(LC_ALL, "en_US");
+          setlocale(LC_ALL, "en_US.UTF-8");
         }
 
         QCoreApplication::setApplicationName(FileName(p_appName).baseName());
@@ -543,7 +543,7 @@ namespace Isis {
           "process. A communication channel was established with the parent "
           "(launcher) process, but when we tried to send data to the parent "
           "process an error occurred. The parent process has a PID of [" +
-          QString(iApp->GetUserInterface().ParentId()) + "]";
+          QString::number(iApp->GetUserInterface().ParentId()) + "]";
       throw IException(IException::Unknown, msg, _FILEINFO_);
     }
 
@@ -976,46 +976,21 @@ namespace Isis {
   }
 
   /**
-   * Runs some printenv commands that return Isis related Enviroment Variables.
+   * Returns ISIS-related Enviroment Variables.
    *
    * @return PvlGroup containing Enviroment information
-   * @todo Replace printenv commands with c library getenv
-   * @todo
    */
   PvlGroup Application::GetEnviromentInfo() {
-    // Create a temporary file to store console output to
-    FileName temp = FileName::createTempFile("$temporary/EnviromentInfo.txt");
-    QString tempFile = temp.expanded();
+    
     PvlGroup envGroup("EnviromentVariables");
-    ifstream readTemp;
 
-    QString env1 = "printenv SHELL >| " + tempFile;
-    QString env2 = "printenv HOME >> " + tempFile;
-    QString env3 = "printenv PWD >> " + tempFile;
-    QString env5 = "printenv ISISROOT >> " + tempFile;
-    QString env6 = "printenv ISISDATA >> " + tempFile;
-    ProgramLauncher::RunSystemCommand(env1);
-    ProgramLauncher::RunSystemCommand(env2);
-    ProgramLauncher::RunSystemCommand(env3);
-    ProgramLauncher::RunSystemCommand(env5);
-    ProgramLauncher::RunSystemCommand(env6);
-    // Read data from temp file
-    char value[511];
-    readTemp.open(tempFile.toLatin1().data(), ifstream::in);
-    readTemp.getline(value, 255);
-    envGroup.addKeyword(PvlKeyword("Shell", value));
-    readTemp.getline(value, 255);
-    envGroup.addKeyword(PvlKeyword("Home", value));
-    readTemp.getline(value, 255);
-    envGroup.addKeyword(PvlKeyword("Pwd", value));
-    readTemp.getline(value, 255);
-    envGroup.addKeyword(PvlKeyword("ISISROOT", value));
-    readTemp.getline(value, 255);
-    envGroup.addKeyword(PvlKeyword("ISISDATA", value));
+    envGroup.addKeyword(PvlKeyword("Shell",    getenv("SHELL")));
+    envGroup.addKeyword(PvlKeyword("Home",     getenv("HOME")));
+    envGroup.addKeyword(PvlKeyword("PWD",      getenv("PWD")));
+    envGroup.addKeyword(PvlKeyword("ISISROOT", getenv("ISISROOT")));
+    envGroup.addKeyword(PvlKeyword("ISISDATA", getenv("ISISDATA")));
+    envGroup.addKeyword(PvlKeyword("SPICEQL_CACHE_DIR", getenv("SPICEQL_CACHE_DIR")));
 
-    // remove temp file and return
-    QString cleanup = "rm -f " + tempFile;
-    ProgramLauncher::RunSystemCommand(cleanup);
     return envGroup;
   }
 

@@ -47,7 +47,7 @@ namespace Isis {
 
     p_closeAllWindows = new QAction(parent);
     p_closeAllWindows->setText("Close All");
-    p_closeAllWindows->setShortcut(Qt::CTRL + Qt::Key_F3);
+    p_closeAllWindows->setShortcut(Qt::CTRL | Qt::Key_F3);
     p_closeAllWindows->setEnabled(false);
 
     p_nextWindow = new QAction(parent);
@@ -79,7 +79,7 @@ namespace Isis {
       of each viewport titlebar indicate the current link state</p> \
       <p><b>Tools using Link:</b> Zoom, Pan, Blink, and Advanced Tracking </p>";
     p_linkWindow->setWhatsThis(text);
-    p_linkWindow->setShortcut(Qt::CTRL + Qt::Key_L);
+    p_linkWindow->setShortcut(Qt::CTRL | Qt::Key_L);
     p_linkWindow->setCheckable(true);
     p_linkWindow->setEnabled(false);
 
@@ -88,7 +88,7 @@ namespace Isis {
     p_linkAllWindows->setToolTip("Link all viewports");
     p_linkAllWindows->setWhatsThis("<b>Function: </b> Links all open viewports \
                                    together. <p><b>Shortcut: </b> Ctrl+Shift+L");
-    p_linkAllWindows->setShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_L);
+    p_linkAllWindows->setShortcut(QKeySequence("Ctrl+Shift+L"));
     p_linkAllWindows->setEnabled(false);
     connect(p_linkAllWindows, SIGNAL(triggered()), this, SLOT(linkWindows()));
 
@@ -97,7 +97,7 @@ namespace Isis {
     p_unlinkAllWindows->setToolTip("Unlink all viewports");
     p_unlinkAllWindows->setWhatsThis("<b>Function: </b> Unlinks all open viewports. \
                                      <p><b>Shortcut: </b> Ctrl+Shift+U");
-    p_unlinkAllWindows->setShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_U);
+    p_unlinkAllWindows->setShortcut(QKeySequence("Ctrl+Shift+U"));
     p_unlinkAllWindows->setEnabled(false);
     connect(p_unlinkAllWindows, SIGNAL(triggered()), this, SLOT(unlinkWindows()));
 

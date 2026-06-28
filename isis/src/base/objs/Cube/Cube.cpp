@@ -23,7 +23,7 @@ find files of those names at the top level of this repository. **/
 #include "CubeBsqHandler.h"
 #include "CubeTileHandler.h"
 #include "CubeStretch.h"
-#include "Endian.h"
+#include "IEndian.h"
 #include "FileName.h"
 #include "GdalIoHandler.h"
 #include "History.h"
@@ -495,11 +495,14 @@ namespace Isis {
     ptype += PvlKeyword("Multiplier", toString(m_multiplier));
 
     if (labelsAttached() != LabelAttachment::ExternalLabel) {
-      if (format() !=  Format::GTiff) {
+      if (format() != Format::GTiff) {
         imageFile = imageFile.addExtension("cub");
       }
       else if (format() == Format::GTiff) {
-        imageFile = imageFile.addExtension("tiff");
+        if (imageFile.extension() != "tif" &&
+            imageFile.extension() != "tiff") {
+          imageFile = imageFile.addExtension("tif");
+        }
       }
       else {
         QString msg = "Unknown format type [" + toString(format()) + "]";
@@ -533,14 +536,15 @@ namespace Isis {
       core.addGroup(ptype);
     }
     else if (labelsAttached() == LabelAttachment::ExternalLabel) {
+      imageFile = imageFile.addExtension("ecub");
       if (!m_dataFileName) {
         if (format() == Bsq || format() == Tile) {
-          imageFile = imageFile.addExtension("cub");
+          imageFile = imageFile.setExtension("cub");
 
           Pvl dnLabel;
           PvlObject isiscube("IsisCube");
           PvlObject dnCore(core);
-          PvlKeyword fileFormat("Format", toString(format()));
+          PvlKeyword fileFormat("Format", CubeAttributeOutput::toString(format()));
 
           dnCore.addKeyword(fileFormat);
           dnCore.addGroup(dims);
@@ -552,13 +556,11 @@ namespace Isis {
           Cube dnCube;
           dnCube.fromLabel(imageFile, dnLabel, "rw");
           dnCube.close();
-
-          m_dataFileName = new FileName(imageFile);
         }
         else if (format() ==  Format::GTiff) {
-          imageFile = imageFile.setExtension("tiff");
-          m_dataFileName = new FileName(imageFile);
+          imageFile = imageFile.setExtension("tif");
         }
+        m_dataFileName = new FileName(imageFile);
         
         imageFile = imageFile.setExtension("ecub");
         FileName labelFileName(imageFile);
@@ -636,8 +638,24 @@ namespace Isis {
     }
     else if(format() ==  Format::GTiff) {
       char **papszOptions = NULL;
-      papszOptions = CSLSetNameValue(papszOptions, "COMPRESS", "DEFLATE");
+      // Make sure the cube is not going to exceed the maximum size preference
+      BigInt size = (BigInt)m_samples * m_lines *
+                    (BigInt)m_bands * (BigInt)SizeOf(m_pixelType);
+
+      size = size / 1024; // kb
+      size = size / 1024; // mb
+      size = size / 1024; // gb
+
       papszOptions = CSLSetNameValue(papszOptions, "PREDICTOR", "2");
+      papszOptions = CSLSetNameValue(papszOptions, "NUM_THREADS", "4");
+      if (size < 4) {
+        papszOptions = CSLSetNameValue(papszOptions, "COMPRESS", "DEFLATE");
+      }
+      else {
+        papszOptions = CSLSetNameValue(papszOptions, "COMPRESS", "LZW");
+        papszOptions = CSLSetNameValue(papszOptions, "BIGTIFF", "YES");
+      }
+
       QString datafile = m_dataFileName->expanded();
       QString format = "GTiff";
       createGdal(datafile, format, papszOptions);
@@ -703,6 +721,8 @@ namespace Isis {
         band->SetOffset(base());
         band->SetNoDataValue(noDataValue);
         band->Fill(noDataValue);
+        band->CreateMaskBand(GMF_ALPHA);
+        band->GetMaskBand()->Fill(255);
       }
       GDALClose(dataset);
       CSLDestroy( papszOptions );
@@ -792,27 +812,26 @@ namespace Isis {
 
     QString msg = "Failed to open [" + cubeFileName + "]";
     IException exceptions(IException::Io, msg, _FILEINFO_);
-    if (!isOpen()) {
-      try {
-        openCube(cubeFileName, access);
-      }
-      catch (IException &e) {
-        cleanUp(false);
-        exceptions.append(e);
-      }
+
+    GDALDriverH hDriver = GDALIdentifyDriver(FileName(cubeFileName).expanded().toStdString().c_str(), nullptr);
+    bool openWithGdal = false;
+    if (hDriver != nullptr) {
+      GDALDriver* poDriver = (GDALDriver*)hDriver;
+      QString driverDescription = poDriver->GetDescription();
+      openWithGdal = (!driverDescription.contains("ISIS"));
     }
 
-    if (!isOpen()) {
-      try {
+    try{
+      if (openWithGdal) {
         openGdal(cubeFileName, access);
       }
-      catch(IException &e) {
-        cleanUp(false);
-        exceptions.append(e);
+      else {
+        openCube(cubeFileName, access);
       }
     }
-
-    if (!isOpen()) {
+    catch(IException &e) {
+      cleanUp(false);
+      exceptions.append(e);
       throw exceptions;
     }
 
@@ -926,10 +945,12 @@ namespace Isis {
           realDataFileLabel(), true);
     }
     else if (m_format == GTiff) {
-      m_dataFile->close();
+      if (m_dataFile) {
+        m_dataFile->close();
+      }
       m_geodataSet = GDALDataset::FromHandle(GDALOpen(m_dataFileName->expanded().toStdString().c_str(), eAccess));
       if (!m_geodataSet) {
-        QString msg = "Opening GDALDataset from [" + m_dataFileName->name() + "] failed with access [" + eAccess +"]";
+        QString msg = "Opening GDALDataset from [" + m_dataFileName->name() + "] failed with access [" + QString::number(eAccess) +"]";
         cleanUp(false);
         throw IException(IException::Io, msg, _FILEINFO_);
       }
@@ -959,145 +980,8 @@ namespace Isis {
     m_dataFileName = new FileName(*m_labelFileName);
 
     initCoreFromGdal(m_labelFileName->expanded());
-    GDALDataset *dataset = GDALDataset::FromHandle(GDALOpen(m_dataFileName->expanded().toStdString().c_str(), GA_ReadOnly));
-    if (!dataset) {
-      QString msg = "Failed opening GDALDataset from [" + m_dataFileName->name() + "]";
-      cleanUp(false);
-      throw IException(IException::Programmer, msg, _FILEINFO_);
-    }
 
-    CPLStringList metadata = CPLStringList(dataset->GetMetadata("USGS"), false);
-
-    m_label = new Pvl();
-    if (metadata) {
-      for (int i = 0; i < metadata.size(); i++) {
-        const char *metadataItem = CPLParseNameValue(metadata[i], nullptr);
-        nlohmann::ordered_json metadataAsJson = nlohmann::ordered_json::parse(metadataItem);
-        Pvl pvl;
-        Pvl::readObject(pvl, metadataAsJson);
-        for (int i = 0; i < pvl.objects(); i++) {
-          m_label->addObject(pvl.object(i));
-        }
-        for (int i = 0; i < pvl.groups(); i++) {
-          m_label->addGroup(pvl.group(i));
-        }
-      }
-    }
-    else {
-      // Setup the PVL
-      PvlObject isiscube("IsisCube");
-      PvlObject core("Core");
-
-      // Create the size of the core
-      PvlGroup dims("Dimensions");
-      dims += PvlKeyword("Samples", toString(m_samples));
-      dims += PvlKeyword("Lines", toString(m_lines));
-      dims += PvlKeyword("Bands", toString(m_bands));
-
-      // Create the pixel type
-      PvlGroup ptype("Pixels");
-      ptype += PvlKeyword("Type", PixelTypeName(m_pixelType));
-
-      // And the byte ordering
-      ptype += PvlKeyword("ByteOrder", ByteOrderName(m_byteOrder));
-      ptype += PvlKeyword("Base", toString(m_base));
-      ptype += PvlKeyword("Multiplier", toString(m_multiplier));
-      
-      core += PvlKeyword("StartByte", toString(m_labelBytes + 1));
-
-      core.addGroup(dims);
-      core.addGroup(ptype);
-
-      isiscube.addObject(core);
-
-      m_label->addObject(isiscube);
-    }
-
-    if (dataset->GetSpatialRef()) {
-      char ** projStr = new char*[1];
-      const OGRSpatialReference &oSRS = *dataset->GetSpatialRef();
-      oSRS.exportToProj4(projStr);
-      QString qProjStr = QString::fromStdString(std::string(projStr[0]) + " +type=crs");
-      delete[] projStr[0];
-      delete[] projStr;
-
-      char ** projJsonStr = new char*[1];
-      oSRS.exportToPROJJSON(projJsonStr, nullptr);
-      nlohmann::json projJson = nlohmann::json::parse(projJsonStr[0]);
-      CPLFree(projJsonStr);
-
-      PvlGroup mappingGroup("Mapping");
-      mappingGroup.addKeyword(PvlKeyword("ProjectionName", "IProj"));
-      mappingGroup.addKeyword(PvlKeyword("EquatorialRadius", toString(oSRS.GetSemiMajor()), "meters"));
-      mappingGroup.addKeyword(PvlKeyword("PolarRadius", toString(oSRS.GetSemiMinor()), "meters"));
-
-      if (projJson.contains("base_crs")) {
-        projJson = projJson["base_crs"];
-      }
-
-      std::string direction = projJson["coordinate_system"]["axis"][1]["direction"];
-      if (direction == "east") {
-        mappingGroup.addKeyword(PvlKeyword("LongitudeDirection", "PositiveEast"));
-      }
-      else if (direction == "west") {
-        mappingGroup.addKeyword(PvlKeyword("LongitudeDirection", "PositiveWest"));
-      }
-      else {
-        QString msg = "Unknown direction [" + QString::fromStdString(direction) + "]";
-        throw IException(IException::Programmer, msg, _FILEINFO_);
-      }
-      
-      if (oSRS.GetSemiMajor() == oSRS.GetSemiMinor()) {
-        mappingGroup.addKeyword(PvlKeyword("LatitudeType", "Planetocentric"));
-      }
-      else {
-        mappingGroup.addKeyword(PvlKeyword("LatitudeType", "Planetographic"));
-      }
-
-      mappingGroup.addKeyword(PvlKeyword("LongitudeDomain", "180"));
-      mappingGroup.addKeyword(PvlKeyword("ProjStr", qProjStr));
-      
-      // Read the GeoTransform and get the elements we care about
-      double *padfTransform = new double[6];
-      dataset->GetGeoTransform(padfTransform);
-      if (abs(padfTransform[1]) != abs(padfTransform[5])) {
-        delete[] padfTransform;
-        QString msg = "Vertical and horizontal resolution do not match";
-        throw IException(IException::Io, msg, _FILEINFO_);
-      }
-
-      double dfScale;
-      double dfRes;
-      double upperLeftX;
-      double upperLeftY;
-      dfRes = padfTransform[1] * oSRS.GetLinearUnits();
-      upperLeftX = padfTransform[0];
-      upperLeftY = padfTransform[3];
-      if (oSRS.IsProjected()) {
-        const double dfDegToMeter = oSRS.GetSemiMajor() * M_PI / 180.0;
-        dfScale = dfDegToMeter / dfRes;
-        mappingGroup.addKeyword(PvlKeyword("PixelResolution", toString(dfRes), "meters/pixel"));
-      }
-      else if (oSRS.IsGeographic()) {
-        dfScale = 1.0 / dfRes;
-        mappingGroup.addKeyword(PvlKeyword("PixelResolution", toString(dfRes), "degrees/pixel"));
-      }
-      else {
-        QString msg = "Gdal spatial reference is not Geographic or Projected";
-        throw IException(IException::Io, msg, _FILEINFO_);
-      }
-      mappingGroup.addKeyword(PvlKeyword("Scale", toString(dfScale), "pixels/degree"));
-      mappingGroup.addKeyword(PvlKeyword("UpperLeftCornerX", toString(upperLeftX)));
-      mappingGroup.addKeyword(PvlKeyword("UpperLeftCornerY", toString(upperLeftY)));
-      delete[] padfTransform;
-
-      PvlObject &isiscube = m_label->findObject("IsisCube");
-      if (isiscube.hasGroup("Mapping")) {
-        isiscube.deleteGroup("Mapping");
-      }
-      isiscube.addGroup(mappingGroup);
-    }
-    GDALClose(dataset);
+    m_label = new Pvl(m_dataFileName->expanded());
     
     GDALAccess eAccess = GA_ReadOnly;
     if (access == "rw") {
@@ -1105,7 +989,7 @@ namespace Isis {
     }
     m_geodataSet = GDALDataset::FromHandle(GDALOpen(m_dataFileName->expanded().toStdString().c_str(), eAccess));
     if (!m_geodataSet) {
-      QString msg = "Opening GDALDataset from [" + m_dataFileName->name() + "] failed with access [" + eAccess +"]";
+      QString msg = "Opening GDALDataset from [" + m_dataFileName->name() + "] failed with access [" + QString::number(eAccess) +"]";
       cleanUp(false);
       throw IException(IException::Io, msg, _FILEINFO_);
     }
@@ -1162,17 +1046,24 @@ namespace Isis {
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
 
+    QMutexLocker locker(m_mutex);
+
     FileName cubeFile = *m_labelFileName;
     if (m_tempCube)
       cubeFile = *m_tempCube;
 
-    if (format() == Format::GTiff && labelsAttached() == LabelAttachment::AttachedLabel) {
-      blob.ReadGdal(gdalDataset());
+    QString blobKey = blob.Key();
+    if (m_blobMap.contains(blobKey)) {
+      blob = m_blobMap[blobKey];
     }
     else {
-      QMutexLocker locker(m_mutex);
-      QMutexLocker locker2(m_ioHandler->dataFileMutex());
-      blob.Read(cubeFile.toString(), *label(), keywords);
+      if (format() == Format::GTiff && labelsAttached() == LabelAttachment::AttachedLabel) {
+        blob.ReadGdal(gdalDataset());
+      }
+      else {
+        QMutexLocker locker2(m_ioHandler->dataFileMutex());
+        blob.Read(cubeFile.toString(), *label(), keywords);
+      }
     }
   }
 
@@ -1331,62 +1222,43 @@ namespace Isis {
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
 
-    if (m_format == Format::GTiff && labelsAttached() == LabelAttachment::AttachedLabel) {  
-      // write new type of blob
-      blob.WriteGdal(gdalDataset());
-      return; // nothing else to do
-    }
-
-    if (!m_labelFile->isWritable()) {
+    if (isReadOnly()) {
       string msg = "The cube must be opened in read/write mode, not readOnly";
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
 
-    // Write an attached blob
-    if (labelsAttached() != LabelAttachment::DetachedLabel) {
-      QMutexLocker locker(m_mutex);
-      QMutexLocker locker2(m_ioHandler->dataFileMutex());
+    QMutexLocker locker(m_mutex);
 
-      // Compute the number of bytes in the cube + label bytes and if the
-      // endpos of the file // is not greater than this then seek to that position.
-      fstream stream(m_labelFileName->expanded().toLatin1().data(),
-                     ios::in | ios::out | ios::binary);
-      stream.seekp(0, ios::end);
-
-      // End byte = end byte of the file (aka eof position, file size)
-      streampos endByte = stream.tellp();
-      // maxbyte = position after the cube DN data and labels
-      streampos maxbyte = (streampos) m_labelBytes;
-
-      maxbyte += (streampos) m_ioHandler->getDataSize();
-
-      // If EOF is too early, allocate space up to where we want the blob
-      if (endByte < maxbyte) {
-        stream.seekp(maxbyte, ios::beg);
-      }
-
-      // Use default argument of "" for detached stream
-      blob.Write(*m_label, stream, "", overwrite);
+    Pvl &cubeLabel = *label();
+    PvlObject &blobLabel = blob.Label();
+    if (labelsAttached() == LabelAttachment::DetachedLabel) {
+        FileName blobFileName = fileName();
+        blobFileName = blobFileName.removeExtension();
+        blobFileName = blobFileName.addExtension(blob.Type());
+        blobFileName = blobFileName.addExtension(blob.Name());
+        blobLabel += PvlKeyword("^" + blob.Type(), blobFileName.name());
     }
 
-    // Write a detached
-    else {
-      FileName blobFileName = fileName();
-      blobFileName = blobFileName.removeExtension();
-      blobFileName = blobFileName.addExtension(blob.Type());
-      blobFileName = blobFileName.addExtension(blob.Name());
-      QString blobFile(blobFileName.expanded());
-      ios::openmode flags = ios::in | ios::binary | ios::out | ios::trunc;
-      fstream detachedStream;
-      detachedStream.open(blobFile.toLatin1().data(), flags);
-      if (!detachedStream) {
-        QString message = "Unable to open data file [" +
-                          blobFileName.expanded() + "]";
-        throw IException(IException::Io, message, _FILEINFO_);
+    // See if the blob is already in the file
+    bool found = false;
+    if (overwrite) {
+      for (int i = 0; i < cubeLabel.objects(); i++) {
+        if (cubeLabel.object(i).name() == blobLabel.name()) {
+          PvlObject &obj = cubeLabel.object(i);
+          if ((QString)obj["Name"] == (QString)blobLabel["Name"]) {
+            found = true;
+            blobLabel["StartByte"] = obj["StartByte"];
+            blobLabel["Bytes"] = obj["Bytes"];
+          }
+        }
       }
-
-      blob.Write(*m_label, detachedStream, blobFileName.name());
     }
+    if (!found) {
+      blobLabel["StartByte"] = toString(0);
+      cubeLabel.addObject(blobLabel);
+    }
+    m_blobMap[blob.Key()] = blob;
+    m_blobQueue.push_back(blob.Key());
   }
 
 
@@ -1820,19 +1692,31 @@ namespace Isis {
   }
 
 
-  void Cube::attachSpiceFromIsd(nlohmann::json isd) {
-    PvlKeyword lkKeyword("LeapSecond");
-    PvlKeyword pckKeyword("TargetAttitudeShape");
-    PvlKeyword targetSpkKeyword("TargetPosition");
-    PvlKeyword ckKeyword("InstrumentPointing");
-    PvlKeyword ikKeyword("Instrument");
-    PvlKeyword sclkKeyword("SpacecraftClock");
-    PvlKeyword spkKeyword("InstrumentPosition");
-    PvlKeyword iakKeyword("InstrumentAddendum");
-    PvlKeyword demKeyword("ShapeModel");
-    PvlKeyword exkKeyword("Extra");
+  /**
+   * Set the camera for this cube. The cube takes ownership of the
+   * pointer and will delete it when done.
+   *
+   * @param camera The camera to set
+   */
+  void Cube::setCamera(Camera *camera) {
+    delete m_camera;
+    m_camera = camera;
+  }
 
-    Spice spice(*this->label(), isd);
+
+  void Cube::attachSpiceFromIsd(nlohmann::json isd) {
+    PvlGroup currentKernels = this->group("Kernels");
+    PvlKeyword lkKeyword = currentKernels["LeapSecond"];
+    PvlKeyword pckKeyword = currentKernels["TargetAttitudeShape"];
+    PvlKeyword targetSpkKeyword = currentKernels["TargetPosition"];
+    PvlKeyword ckKeyword = currentKernels["InstrumentPointing"];
+    PvlKeyword ikKeyword = currentKernels["Instrument"];
+    PvlKeyword sclkKeyword = currentKernels["SpacecraftClock"];
+    PvlKeyword spkKeyword = currentKernels["InstrumentPosition"];
+    PvlKeyword iakKeyword = currentKernels["InstrumentAddendum"];
+    PvlKeyword demKeyword = currentKernels["ShapeModel"];
+
+    Spice spice(*this, *this->label(), isd);
     Table ckTable = spice.instrumentRotation()->Cache("InstrumentPointing");
     ckTable.Label() += PvlKeyword("Kernels");
 
@@ -1866,8 +1750,27 @@ namespace Isis {
       sunTable.Label()["Kernels"].addValue(targetSpkKeyword[i]);
 
     this->write(sunTable);
+    
+    //  Save original kernels in keyword before changing to Table
+    if (ckKeyword[0] != "Table") {
+      currentKernels["InstrumentPointing"] = "Table";
+      for (int i = 0; i < ckKeyword.size(); i++)
+        currentKernels["InstrumentPointing"].addValue(ckKeyword[i]);
+    }
 
-    PvlGroup currentKernels = this->group("Kernels");
+    if (spkKeyword[0] != "Table") {
+      currentKernels["InstrumentPosition"] = "Table";
+      for (int i = 0; i < spkKeyword.size(); i++)
+        currentKernels["InstrumentPosition"].addValue(spkKeyword[i]);
+    }
+
+    if (targetSpkKeyword[0] != "Table") {
+      currentKernels["TargetPosition"] = "Table";
+      for (int i = 0; i < targetSpkKeyword.size(); i++)
+        currentKernels["TargetPosition"].addValue(targetSpkKeyword[i]);
+    }
+
+    putGroup(currentKernels);
 
     Pvl *label = this->label();
     int i = 0;
@@ -2331,6 +2234,28 @@ namespace Isis {
       if (obj.name().compare(BlobType) == 0) {
         if (obj.findKeyword("Name")[0] == BlobName) {
           m_label->deleteObject(i);
+          QString key = BlobType + "_" + BlobName;
+
+          if (gdalDataset()) {
+            CPLStringList metadata = CPLStringList(gdalDataset()->GetMetadata("json:ISIS3"), false);
+            const char *metadataJsonString = metadata[0];
+            nlohmann::ordered_json jsonblob = nlohmann::ordered_json::parse(metadataJsonString);
+
+            bool keyErased = jsonblob.erase(key.toStdString());
+            string jsonblobstr = jsonblob.dump();
+
+            char **outputMetadata = new char*[1];
+            outputMetadata[0] = jsonblobstr.data();
+            gdalDataset()->SetMetadata(outputMetadata, "json:ISIS3");
+            delete []outputMetadata;
+            
+            return keyErased;
+          }
+
+          if (m_blobMap.contains(key)) {
+            m_blobMap.remove(key);
+            m_blobQueue.removeOne(key);
+          }
           return true;
         }
       }
@@ -2390,6 +2315,8 @@ namespace Isis {
    * @return bool True if the BLOB was found
    */
   bool Cube::hasBlob(const QString &name, const QString &type) {
+    QMutexLocker locker(m_mutex);
+
     for(int o = 0; o < label()->objects(); o++) {
       PvlObject &obj = label()->object(o);
       if (obj.isNamed(type)) {
@@ -2467,7 +2394,7 @@ namespace Isis {
     }
 
     // Change the number of bands in the labels of the cube
-    if (m_virtualBandList && core.hasGroup("Dimensions")) core.findGroup("Dimensions")["Bands"] = toString(m_virtualBandList->size());
+    if (m_virtualBandList && core.hasGroup("Dimensions")) core.findGroup("Dimensions")["Bands"] = toString((int)m_virtualBandList->size());
   }
 
 
@@ -2569,10 +2496,6 @@ namespace Isis {
 
 
   GDALDataset *Cube::gdalDataset() const {
-    if (!m_geodataSet) {
-      QString msg = "No GDALDataset has been constructed";
-      throw IException(IException::Programmer, msg, _FILEINFO_);
-    }
     return m_geodataSet;
   }
 
@@ -3021,19 +2944,48 @@ namespace Isis {
       string msg = "Cube must be opened first before writing labels";
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
+
+    if (isReadOnly()) {
+      string msg = "The cube must be opened in read/write mode, not readOnly";
+      throw IException(IException::Programmer, msg, _FILEINFO_);
+    }
     
-    if (m_format == Format::GTiff && labelsAttached() == LabelAttachment::AttachedLabel) { 
+    if (m_format == Format::GTiff) {
+
+      nlohmann::ordered_json jsonOut;
+
+      // Check for existing data, if there is data update it
+      CPLStringList metadata = CPLStringList(gdalDataset()->GetMetadata("json:ISIS3"), false);
+
+      if (metadata[0] != nullptr) {
+        const char *metadataJsonString = metadata[0];
+        jsonOut = nlohmann::ordered_json::parse(metadataJsonString);
+      }
+
       // update metadata
       nlohmann::ordered_json jsonblob = this->label()->toJson()["Root"];
-      nlohmann::ordered_json jsonOut;
       for (auto& [key, val] : jsonblob.items()) {
         if (!val.contains("Bytes") || key == "Label") {
           jsonOut[key] = val;
         }
       }
-      std::string jsonblobstr = jsonOut.dump();
-      std::string name = "CubeLabel";
-      gdalDataset()->SetMetadataItem(name.c_str(), jsonblobstr.c_str(), "USGS");
+
+      for (QString blobKey : m_blobQueue) {
+        Blob &blob = m_blobMap[blobKey];
+
+        std::string blobJsonStr = "{}";
+        blob.WriteGdal(blobJsonStr);
+        nlohmann::ordered_json blobJson = nlohmann::ordered_json::parse(blobJsonStr);
+        jsonOut.update(blobJson);
+      }
+      m_blobMap.clear();
+      m_blobQueue.clear();
+      std::string jsonOutStr = jsonOut.dump();
+
+      char ** outputMetadata = new char*[1];
+      outputMetadata[0] = jsonOutStr.data();
+      gdalDataset()->SetMetadata(outputMetadata, "json:ISIS3");
+      delete []outputMetadata;
 
       if (this->label()->findObject("IsisCube").hasGroup("Mapping")) {
         PvlGroup &mappingGroup = this->label()->findObject("IsisCube").findGroup("Mapping");
@@ -3065,14 +3017,76 @@ namespace Isis {
     // Set the pvl's format template
     m_label->setFormatTemplate(m_formatTemplateFile->original());
 
-    // Write them with attached data
+    // Write them with attached label and blob data
     if (labelsAttached() != LabelAttachment::DetachedLabel) {
       QMutexLocker locker(m_mutex);
       QMutexLocker locker2(m_ioHandler->dataFileMutex());
 
+      // Compute the number of bytes in the cube + label bytes and if the
+      // endpos of the file // is not greater than this then seek to that position.
+      fstream stream(m_labelFileName->expanded().toLatin1().data(),
+                     ios::in | ios::out | ios::binary);
+
+      // maxbyte = position after the cube DN data and labels
+      streampos maxbyte = (streampos) m_labelBytes;
+
+      if (labelsAttached() == LabelAttachment::AttachedLabel) {
+        maxbyte += (streampos) m_ioHandler->getDataSize();
+      }
+      for (QString blobKey : m_blobQueue) {
+        Blob &blob = m_blobMap[blobKey];
+
+        stream.seekp(0, ios::end);
+
+        // End byte = end byte of the file (aka eof position, file size)
+        streampos endByte = stream.tellp();
+
+        // If EOF is too early, allocate space up to where we want the blob
+        if (endByte < maxbyte) {
+          stream.seekp(maxbyte, ios::beg);
+        }
+
+        streampos eofbyte = stream.tellp();
+        eofbyte += 1;
+
+        PvlObject &blobLabel = blob.Label();
+
+        BigInt oldSbyte = blobLabel["StartByte"];
+        int oldNbytes = (int) blobLabel["Bytes"];
+
+        if (oldSbyte == 0) {
+          blobLabel["StartByte"] = toString((BigInt)eofbyte);
+        }
+        else {
+          // Does it fit in the old space
+          if (blob.Size() <= oldNbytes) {
+            stream.seekp(oldSbyte - 1, ios::beg);
+          }
+          // Was the old space at the end of the file
+          else if ((oldSbyte + oldNbytes) == eofbyte) {
+            stream.seekp(oldSbyte - 1, ios::beg);
+          }
+        }
+
+        // Use default argument of "" for detached stream
+        try {
+          blob.Write(*label(), stream);
+        }
+        catch (IException &e) {
+          QString msg = "Failed to write blob [" + blob.Type() + ", " + blob.Name() + "]";
+          throw IException(e, IException::Io, msg, _FILEINFO_);
+          stream.close();
+        }
+        stream.flush();
+      }
+      m_blobMap.clear();
+      m_blobQueue.clear();
+      stream.close();
+
       ostringstream temp;
       temp << *m_label << endl;
       string tempstr = temp.str();
+
       if ((int) tempstr.length() <= m_labelBytes) {
         QByteArray labelArea(m_labelBytes, '\0');
         QByteArray labelUnpaddedContents(tempstr.c_str(), tempstr.length());
@@ -3090,9 +3104,36 @@ namespace Isis {
         throw IException(IException::Io, msg, _FILEINFO_);
       }
     }
-
     // or detached label
     else {
+      for (QString blobKey : m_blobQueue) {
+        Blob &blob = m_blobMap[blobKey];
+
+        FileName blobFileName(blob.Label().findKeyword("^" + blob.Type())[0]);
+        QString blobFile(blobFileName.expanded());
+        ios::openmode flags = ios::in | ios::binary | ios::out | ios::trunc;
+        fstream detachedStream;
+        detachedStream.open(blobFile.toLatin1().data(), flags);
+        if (!detachedStream) {
+          QString message = "Unable to open data file [" +
+                            blobFileName.expanded() + "]";
+          throw IException(IException::Io, message, _FILEINFO_);
+        }
+
+        try {
+          blob.Write(*label(), detachedStream);
+        }
+        catch (IException &e) {
+          QString msg = "Failed to write blob [" + blob.Type() + ", " + blob.Name() + "]";
+          throw IException(e, IException::Io, msg, _FILEINFO_);
+          detachedStream.close();
+        }
+        detachedStream.flush();
+        detachedStream.close();
+      }
+      m_blobMap.clear();
+      m_blobQueue.clear();
+
       m_label->write(m_labelFileName->expanded());
     }
   }

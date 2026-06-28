@@ -5,6 +5,12 @@ env:
   ENCRYPTION_KEY: ${{ secrets.KDU_ENC_KEY }}
 
 on:
+  workflow_dispatch:
+    inputs:
+      doi:
+        description: 'USGS DOI for citation update (e.g., 10.5066/P13TADS5)'
+        required: false
+        type: string
   release:
     types: [prereleased, released]
   push:
@@ -16,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-          os: [ubuntu-latest, macos-13, macos-14]
+          os: [ubuntu-latest, macos-15, macos-15-intel]
     runs-on: ${{ matrix.os }}
 
     outputs:
@@ -33,14 +39,14 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-variant: Miniforge3
-          auto-update-conda: true
+          auto-update-conda: false
           use-mamba: true
 
       - name: Build Release
         env:
           ISIS_VERSION: ${{ steps.set_version.outputs.isis_version }}
         run: |
-          mamba install conda-build anaconda-client
+          conda install python=3.12 conda-build anaconda-client --solver=classic -y
           git fetch origin
           if [[ "$ISIS_VERSION" =~ .*_RC[0-9]$ ]]; then 
             git checkout $ISIS_VERSION
@@ -48,14 +54,6 @@ jobs:
             git checkout refs/tags/$ISIS_VERSION
           fi
           cd recipe
-          echo $ENCRYPTION_KEY | openssl enc -aes-256-cbc -d -in kakadu/kakadu_7_9.zip.enc -out kakadu/kakadu_7_9.zip -pbkdf2 -iter 10000 -pass stdin
-          unzip -j kakadu/kakadu_7_9.zip -d /tmp/kakadu_7_9 -x "__MACOSX/*"
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "s|/isisData/kakadu|/tmp/kakadu_7_9|g" build.sh
-          else
-            sed -i "s|/isisData/kakadu|/tmp/kakadu_7_9|g" build.sh
-          fi
-
           if [[ "$ISIS_VERSION" =~ .*_RC[0-9]$ ]]; then 
             conda build . -c usgs-astrogeology -c conda-forge --override-channels --user usgs-astrogeology --label RC
           elif [[ "$ISIS_VERSION" =~ .*_LTS$ ]]; then 
@@ -64,14 +62,14 @@ jobs:
             conda build . -c usgs-astrogeology -c conda-forge --override-channels --user usgs-astrogeology --label LTS --label main
           fi
 
-  
+
   test:
     runs-on: ${{ matrix.os }}
     needs: build
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-13, macos-14]
+        os: [ubuntu-latest, macos-15, macos-15-intel]
     env:
       ISIS_VERSION: ${{ needs.build.outputs.isis_version }}
       
@@ -83,7 +81,6 @@ jobs:
           auto-update-conda: true
           activate-environment: isis-test
           use-mamba: true
-          mamba-version: "1.5.3"
 
       - name: Conda install and test spiceinit
         run: |
@@ -148,7 +145,109 @@ jobs:
             cd "${ISIS_VERSION}"
             echo "Uploading documentation to S3..."
             aws s3 sync ./ s3://asc-public-docs/isis-site/${ISIS_VERSION}/ --delete
+            aws s3 cp s3://asc-public-docs/isis-site/versions.json /home/runner/work/ISIS3/ISIS3/build/docs/versions.json
           else
             echo "Error: docs/${ISIS_VERSION} directory not found!"
             exit 1
+          fi
+
+      - name: Update versions.json
+        shell: python
+        working-directory: /home/runner/work/ISIS3/ISIS3/build/docs
+        env:
+          ISIS_VERSION: ${{ needs.build.outputs.isis_version }}
+        run: |
+          import json
+          from packaging.version import parse
+          import os
+
+          new_version = os.environ["ISIS_VERSION"]
+
+          with open("versions.json") as f:
+              versions = json.load(f)
+
+          non_dev = [v for v in versions if v != "Dev" and v.strip() != ""]
+          if new_version not in non_dev:
+              non_dev.append(new_version)
+          non_dev_sorted = sorted(non_dev, key=parse, reverse=True)
+          updated_versions = ["Dev"] + non_dev_sorted
+
+          if updated_versions != versions:
+              with open("versions.json", "w") as f:
+                  json.dump(updated_versions, f)
+              print("versions.json updated:", updated_versions)
+          else:
+              print("No changes needed to versions.json")
+
+      - name: Upload updated versions.json to S3
+        run: |
+          aws s3 cp /home/runner/work/ISIS3/ISIS3/build/docs/versions.json s3://asc-public-docs/isis-site/versions.json
+
+  update-citation:
+    name: Update Citation Files
+    runs-on: ubuntu-latest
+    needs: [build, test]
+    # Run if: (1) manual trigger with DOI input, OR (2) release event
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.doi != '') ||
+      (github.event_name == 'release' && github.event.action == 'released')
+    env:
+      ISIS_VERSION: ${{ needs.build.outputs.isis_version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install PyYAML
+
+      - name: Get DOI
+        id: doi
+        run: |
+          # Check if DOI was provided manually
+          if [ -n "${{ github.event.inputs.doi }}" ]; then
+            echo "doi=${{ github.event.inputs.doi }}" >> $GITHUB_OUTPUT
+            echo "Using manual DOI: ${{ github.event.inputs.doi }}"
+          else
+            # Fetch release page HTML and extract DOI
+            RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/${{ env.ISIS_VERSION }}"
+
+            # Look for DOI pattern (10.XXXX/XXXXXX)
+            DOI=$(curl -sL "$RELEASE_URL" | grep -oP '10\.\d+/[A-Z0-9]+' | head -1)
+
+            if [ -z "$DOI" ]; then
+              echo "No DOI found on release page, skipping citation update"
+              echo "skip=true" >> $GITHUB_OUTPUT
+            else
+              echo "doi=$DOI" >> $GITHUB_OUTPUT
+              echo "Found DOI from release page: $DOI"
+            fi
+          fi
+
+      - name: Generate citation files
+        if: steps.doi.outputs.skip != 'true'
+        run: |
+          python isis/scripts/generate_citation.py \
+            --version ${{ env.ISIS_VERSION }} \
+            --doi ${{ steps.doi.outputs.doi }}
+
+      - name: Commit citation files
+        if: steps.doi.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add CITATION.cff README.md
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Update citation for ISIS ${{ env.ISIS_VERSION }} (DOI: ${{ steps.doi.outputs.doi }})"
+            git push origin HEAD:${{ github.event.release.target_commitish || github.ref_name }}
+            echo "✓ Citation files committed to ${{ github.event.release.target_commitish || github.ref_name }} branch"
           fi

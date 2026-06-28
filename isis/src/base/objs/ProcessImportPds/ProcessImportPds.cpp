@@ -7,6 +7,7 @@ find files of those names at the top level of this repository. **/
 #include "ProcessImportPds.h"
 
 #include <QString>
+#include <QRegularExpression>
 
 #include <iostream>
 #include <QString>
@@ -25,7 +26,6 @@ find files of those names at the top level of this repository. **/
 #include "PvlKeyword.h"
 #include "PvlGroup.h"
 #include "PvlObject.h"
-#include "PvlTokenizer.h"
 #include "PvlToPvlTranslationManager.h"
 #include "SpecialPixel.h"
 #include "Table.h"
@@ -1399,7 +1399,11 @@ namespace Isis {
 
     // Internalize the PDS label in the PVL that was passed in
     try {
-      pdsLabel.read(pdsLabelFile);
+      if (pdsLabelFile.contains((QString)"/vsi")) {
+        pdsLabel.readGdal(pdsLabelFile);
+      } else {
+        pdsLabel.read(pdsLabelFile);
+      }
     }
     catch (IException &e) {
       throw IException(e, IException::User,
@@ -1484,7 +1488,7 @@ namespace Isis {
     if (inst.hasKeyword("StartTime")) {
       Isis::PvlKeyword &stkey = inst["StartTime"];
       QString stime = stkey[0];
-      stime = stime.remove(QRegExp("[Zz]$"));
+      stime = stime.remove(QRegularExpression("[Zz]$"));
       stkey = stime;
     }
   }

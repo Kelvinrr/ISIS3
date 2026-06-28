@@ -46,6 +46,10 @@ Group = InstrumentName
   # Chandrayaan
   Translation   = (M3, M3)
   Translation   = (Minirf, MRFFR)
+  Translation   = (Ohrc, OHRC)
+  Translation   = (Tmc2, CH2_TMC_NADIR)
+  Translation   = (Tmc2, CH2_TMC_FORE)
+  Translation   = (Tmc2, CH2_TMC_AFT)
 
   # Clementine
   Translation   = (Hires, HIRES)
@@ -88,6 +92,12 @@ Group = InstrumentName
   Translation   = (Tc, TC1)
   Translation   = (Tc, TC2)
 
+  # KPLO 
+  #Translation   = (ShadowCamCamera, KPLO_SHADOWCAM)
+  #Translation   = (ShadowCam, SHADOWCAM)  
+	Translation   = (ShadowCamCamera, KPLO_SHC)
+  Translation   = (ShadowCamCamera, ShadowCam)
+  
   # LO
   Translation   = (Hrc, "High Resolution Camera")
   Translation   = (Mrc, "Medium Resolution Camera")

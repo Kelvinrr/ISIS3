@@ -99,11 +99,6 @@ namespace Isis {
     AlphaCube a(cube);
     p_ns = a.AlphaSamples();
     p_nl = a.AlphaLines();
-
-    // Get the two kernels for time computations
-    PvlGroup &kerns = lab.findGroup("Kernels", Pvl::Traverse);
-    p_lsk = FileName(kerns["LeapSecond"][0]);
-    p_sclk = FileName(kerns["SpacecraftClock"][0]);
   }
 
   /**
@@ -227,7 +222,7 @@ namespace Isis {
     // Initialize the maps from sample coordinate to detector coordinates
     InitDetectorMaps();
 
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
 
     auto [output, kernels] = SpiceQL::strSclkToEt(-94, p_clockCount.toLatin1().data(), "mgs", useWeb);
     p_etStart = output; 
@@ -463,7 +458,7 @@ namespace Isis {
       sclk.Remove("\"");
       sclk.Trim(" ");
 
-      bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+      bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
       auto [et, kernels] = SpiceQL::strSclkToEt(-94, currentSclk, "mgs", useWeb);
 
       //Compare time against given parameters, if it fits, process

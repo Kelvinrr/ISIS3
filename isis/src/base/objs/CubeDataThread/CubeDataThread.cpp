@@ -87,9 +87,9 @@ namespace Isis {
     // Destroy the cubes still in memory
     if (p_managedCubes) {
       for (int i = p_managedCubes->size() - 1; i >= 0; i--) {
-        if ((p_managedCubes->end() - 1)->first) // only delete if we own it!
-          delete (p_managedCubes->end() - 1).value().second;
-        p_managedCubes->erase(p_managedCubes->end() - 1);
+        if (std::prev(p_managedCubes->end())->first) // only delete if we own it!
+          delete std::prev(p_managedCubes->end()).value().second;
+        p_managedCubes->erase(std::prev(p_managedCubes->end()));
       }
     }
 
@@ -255,13 +255,13 @@ namespace Isis {
    * @param sharedLock True if read-only, false if read-write
    */
   void CubeDataThread::GetCubeData(int cubeId, int ss, int sl, int es, int el,
-                                   int band, void *caller, bool sharedLock, double scale) {
+                                   int band, void *caller, bool sharedLock) {
 
     Brick *requestedBrick = NULL;
 
     p_threadSafeMutex->lock();
     requestedBrick = new Brick(*p_managedCubes->value(cubeId).second, es
-                                     - ss + 1, (el - sl + 1) / scale, 1, false, scale);
+                                     - ss + 1, el - sl + 1, 1);
     requestedBrick->SetBasePosition(ss, sl, band);
     p_threadSafeMutex->unlock();
 
@@ -425,7 +425,7 @@ namespace Isis {
    */
   void CubeDataThread::ReadCube(int cubeId, int startSample, int startLine,
                                 int endSample, int endLine, int band,
-                                void *caller, double scale) {
+                                void *caller) {
 
     if(!p_managedCubes->contains(cubeId)) {
       IString msg = "cube ID [";
@@ -434,12 +434,8 @@ namespace Isis {
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
 
-    if (scale > 1) {
-      scale = 1.0;
-    }
-
     GetCubeData(cubeId, startSample, startLine, endSample, endLine, band,
-                caller, true, scale);
+                caller, true);
   }
 
   /**
@@ -473,7 +469,7 @@ namespace Isis {
     }
 
     GetCubeData(cubeId, startSample, startLine, endSample, endLine, band,
-                caller, false, 1);
+                caller, false);
   }
 
   /**

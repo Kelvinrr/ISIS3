@@ -46,6 +46,7 @@ EndGroup
 Group = ErrorFacility
   FileLine = Off
   Format = Standard
+  ShowDeprecated = Off
   StackTrace = Off
 EndGroup
 
@@ -70,6 +71,15 @@ EndGroup
 #  CubeSupported = False
 #  Tolerance = DBL_MAX
 #EndGroup
+
+########################################################
+# For Future Work: 
+# Not currently being implemented in code but used in tests
+########################################################
+
+Group = ShapeModelWeb
+ URL = "https://stac.astrogeology.usgs.gov/api/search/"
+EndGroup
 
 ########################################################
 # Customize how session logging is handled
@@ -191,8 +201,8 @@ EndGroup
 #
 ########################################################
 
-Group = WebSpice
-  UseWebSpice = "false"
+Group = SpiceQL
+  UseSpiceQL = "false"
 EndGroup
 
 
@@ -219,6 +229,7 @@ Group = DataDirectory
   Hayabusa2    = $ISISDATA/hayabusa2
   Juno         = $ISISDATA/juno
   Kaguya       = $ISISDATA/kaguya
+  Kplo         = $ISISDATA/kplo
   Lo           = $ISISDATA/lo
   Lro          = $ISISDATA/lro
   Mariner10    = $ISISDATA/mariner10

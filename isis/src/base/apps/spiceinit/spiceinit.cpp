@@ -179,12 +179,31 @@ namespace Isis {
       getUserEnteredKernel(ui, "IAK", iak);
       getUserEnteredKernel(ui, "EXTRA", exk);
 
+      QString globalUrl;
+
       // Get shape kernel
       if (ui.GetString("SHAPE") == "USER") {
         getUserEnteredKernel(ui, "MODEL", dem);
+
+        QString modelPath = dem[0];
+        FileName modelFile(modelPath);
+
+        if (!modelFile.fileExists()) {
+          QString msg = "Shape model file [" + modelPath + "] does not exist";
+          throw IException(IException::User, msg, _FILEINFO_);
+        }
       }
       else if (ui.GetString("SHAPE") == "SYSTEM") {
         dem = baseKernels.dem(lab);
+      }
+      else if (ui.GetString("SHAPE") == "WEB") {
+        globalUrl = baseKernels.getGlobalDemTiffUrl(lab);
+        if (!globalUrl.isEmpty()) {
+          dem.push_back(globalUrl);
+        }
+        else {
+          dem = baseKernels.dem(lab);
+        }
       }
 
       bool kernelSuccess = false;
@@ -253,13 +272,14 @@ namespace Isis {
 
         realCkKernel.setKernels(ckKernelList);
 
+
         kernelSuccess = tryKernels(icube, p, ui, log, lk, pck, targetSpk,
-                                   realCkKernel, fk, ik, sclk, spk, iak, dem, exk);
+                                realCkKernel, fk, ik, sclk, spk, iak, dem, exk);
       }
       if (!kernelSuccess) {
         throw IException(IException::Unknown,
-                         "Unable to initialize camera model",
-                         _FILEINFO_);
+                        "Unable to initialize camera model",
+                        _FILEINFO_);
       }
     }
     icube->deleteGroup("CsmInfo");
@@ -593,6 +613,7 @@ namespace Isis {
     }
     return true;
   }
+
 
 
   /**

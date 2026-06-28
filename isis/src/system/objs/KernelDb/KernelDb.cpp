@@ -18,7 +18,6 @@ find files of those names at the top level of this repository. **/
 #include "iTime.h"
 #include "Kernel.h"
 #include "Preference.h"
-#include "Preference.h"
 #include "PvlGroup.h"
 #include "PvlKeyword.h"
 #include "PvlObject.h"
@@ -689,6 +688,113 @@ namespace Isis {
     }
 
     return matchKeywords && matchTime;
+  }
+
+  QString KernelDb::getGlobalDemTiffUrl(const Pvl &lab) {
+    QString tiffUrl;
+
+    PvlGroup inst = lab.findGroup("Instrument", Pvl::Traverse);
+    QString target = inst.findKeyword("TargetName")[0];
+    target = target.toLower();
+    target[0] = target[0].toUpper();
+
+    QString isisStacURL = "https://astrogeology.usgs.gov/apis/isis-stac/search";
+    nlohmann::json body;
+    body["query"]["ssys:targets"]["in"] = {target.toStdString()};
+    body["sort"] = {{{"field","version"},{"direction","desc"}}};
+    body["limit"] = 1;
+
+    std::string jsonData = body.dump();
+    std::string responseBody = curlPostRequest(isisStacURL.toStdString(), jsonData);
+
+    if (!responseBody.empty() && responseBody[0] == '{') {
+      nlohmann::json json = nlohmann::json::parse(responseBody);
+
+      if (json.contains("features") && !json["features"].empty()) {
+        nlohmann::json data = json["features"][0]["assets"]["image"];
+        tiffUrl = "/vsicurl/" + QString::fromStdString(data["href"]);
+      }
+    }
+    return tiffUrl;
+  }
+
+  QString KernelDb::getDemTiffUrl(const Pvl &lab, double north, double south, double east, double west) {
+    QString tiffUrl;
+
+    PvlGroup inst = lab.findGroup("Instrument", Pvl::Traverse);
+    QString target = inst.findKeyword("TargetName")[0];
+    target = target.toLower();
+    target[0] = target[0].toUpper();
+
+    QString url = Preference::Preferences().findGroup("ShapeModelWeb")["URL"];
+    nlohmann::json body;
+    body["bbox"] = {west, south, east, north};
+    body["query"]["ssys:targets"]["in"] = {target.toStdString()};
+    body["sort"] = {{{"field","version"},{"direction","desc"}}};
+    body["limit"] = 100;
+    
+    std::string jsonData = body.dump();
+
+    std::string responseBody = curlPostRequest(url.toStdString(), jsonData);
+
+    if (!responseBody.empty() && responseBody[0] == '{') {
+      nlohmann::json json = nlohmann::json::parse(responseBody);
+
+      if (json.contains("features") && !json["features"].empty()) {
+        double bestGSD = std::numeric_limits<double>::max();
+        nlohmann::json bestFeature;
+
+        for (auto &feat : json["features"]) {
+          double gsd = std::numeric_limits<double>::max();
+
+          if (feat["properties"].contains("gsd")) {
+            gsd = feat["properties"]["gsd"].get<double>();
+          }
+
+          if (gsd < bestGSD) {
+            bestGSD = gsd;
+            bestFeature = feat;
+          }
+        }
+
+        // If no GSD was found in any feature, pick the first feature
+        if (bestFeature.is_null()) {
+          bestFeature = json["features"][0];
+        }
+
+        nlohmann::json data = bestFeature["assets"]["image"];
+        tiffUrl = "/vsicurl/" + QString::fromStdString(data["href"]);
+      }
+    }
+    return tiffUrl;
+  }
+
+  std::string KernelDb::curlPostRequest(const std::string url, const std::string jsonData) {
+    CURL *curl = curl_easy_init();
+    if (!curl) {
+      throw IException(IException::Programmer, "Failed to initialize CURL", _FILEINFO_);
+    }
+
+    std::string responseBody;
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, jsonData.c_str());
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &KernelDb::writeCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBody);
+
+    CURLcode res = curl_easy_perform(curl);
+
+    curl_easy_cleanup(curl);
+    curl_slist_free_all(headers);
+
+    if (res != CURLE_OK) {
+      throw IException(IException::Io, "CURL error: " + QString(curl_easy_strerror(res)), _FILEINFO_);
+    }
+
+    return responseBody;
   }
 
   /**

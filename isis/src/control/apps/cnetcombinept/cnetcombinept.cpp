@@ -240,8 +240,8 @@ namespace Isis{
       sn_m.next();
 
       // Generate a kd-tree for all measures in each cube for distance comparisons
-      QScopedPointer<CNetPointCloud> cloud(new CNetPointCloud(sn_m.value(), sn_m.key()));
-      CubeMeasureTree cloud_t(new CNetPointCloudTree(cloud.take(), kd_nodes ) );
+      std::unique_ptr<CNetPointCloud> cloud(new CNetPointCloud(sn_m.value(), sn_m.key()));
+      CubeMeasureTree cloud_t(new CNetPointCloudTree(cloud.release(), kd_nodes ) );
       measure_clouds.insert(sn_m.key(), cloud_t);
 
       progress.CheckStatus();
@@ -490,7 +490,7 @@ namespace Isis{
     int pMerged = validPoints - vPoints;
     PvlGroup summary("Summary");
     summary += PvlKeyword("TotalCubes",        toString(cube_measures_size));
-    summary += PvlKeyword("TotalInputPoints",  toString(all_points.size()));
+    summary += PvlKeyword("TotalInputPoints",  toString((int)all_points.size()));
     summary += PvlKeyword("TotalOutputPoints", toString(oPoints));
     summary += PvlKeyword("PointsMerged",      toString(pMerged));
     summary += PvlKeyword("PointsEvaluated",   toString(nfound));

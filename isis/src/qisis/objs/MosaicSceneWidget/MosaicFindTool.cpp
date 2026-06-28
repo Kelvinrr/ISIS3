@@ -47,7 +47,7 @@ namespace Isis {
     if(validLat != QValidator::Acceptable) {
       QMessageBox::warning(getWidget(), "Error",
                            "Latitude value must be in the range -90 to 90",
-                           QMessageBox::Ok, QMessageBox::NoButton, QMessageBox::NoButton);
+                           QMessageBox::Ok, QMessageBox::NoButton);
       return;
     }
 
@@ -58,7 +58,7 @@ namespace Isis {
     if(validLon != QValidator::Acceptable) {
       QMessageBox::warning(getWidget(), "Error",
                            "Longitude value must be a double",
-                           QMessageBox::Ok, QMessageBox::NoButton, QMessageBox::NoButton);
+                           QMessageBox::Ok, QMessageBox::NoButton);
       return;
     }
 
@@ -147,7 +147,7 @@ namespace Isis {
     actionLayout->addWidget(okButton);
     actionLayout->addWidget(clearButton);
     actionLayout->addStretch(1);
-    actionLayout->setMargin(0);
+    actionLayout->setContentsMargins(0, 0, 0, 0);
 
     QWidget *toolBarWidget = new QWidget;
     toolBarWidget->setLayout(actionLayout);

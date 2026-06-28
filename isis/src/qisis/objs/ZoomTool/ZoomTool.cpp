@@ -46,11 +46,11 @@ namespace Isis {
 
     p_zoomIn4X = new QAction(parent);
     p_zoomIn4X->setText("Zoom In 4X");
-    p_zoomIn4X->setShortcut(Qt::CTRL + Qt::Key_Plus);
+    p_zoomIn4X->setShortcut(Qt::CTRL | Qt::Key_Plus);
     connect(p_zoomIn4X, SIGNAL(triggered()), this, SLOT(zoomIn4X()));
 
     p_zoomIn8X = new QAction(parent);
-    p_zoomIn8X->setShortcut(Qt::ALT + Qt::Key_Plus);
+    p_zoomIn8X->setShortcut(Qt::ALT | Qt::Key_Plus);
     p_zoomIn8X->setText("Zoom In 8X");
     connect(p_zoomIn8X, SIGNAL(triggered()), this, SLOT(zoomIn8X()));
 
@@ -61,12 +61,12 @@ namespace Isis {
     connect(p_zoomOut2X, SIGNAL(triggered()), this, SLOT(zoomOut2X()));
 
     p_zoomOut4X = new QAction(parent);
-    p_zoomOut4X->setShortcut(Qt::CTRL + Qt::Key_Minus);
+    p_zoomOut4X->setShortcut(Qt::CTRL | Qt::Key_Minus);
     p_zoomOut4X->setText("Zoom Out 4X");
     connect(p_zoomOut4X, SIGNAL(triggered()), this, SLOT(zoomOut4X()));
 
     p_zoomOut8X = new QAction(parent);
-    p_zoomOut8X->setShortcut(Qt::ALT + Qt::Key_Minus);
+    p_zoomOut8X->setShortcut(Qt::ALT | Qt::Key_Minus);
     p_zoomOut8X->setText("Zoom Out 8X");
     connect(p_zoomOut8X, SIGNAL(triggered()), this, SLOT(zoomOut8X()));
 
@@ -240,7 +240,7 @@ namespace Isis {
     connect(p_zoomLineEdit, SIGNAL(returnPressed()), this, SLOT(zoomManual()));
 
     QHBoxLayout *layout = new QHBoxLayout(hbox);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(zoomInButton);
     layout->addWidget(zoomOutButton);
     layout->addWidget(zoomActButton);
@@ -548,7 +548,7 @@ namespace Isis {
       if(rubberBandTool()->mouseButton() & Qt::MiddleButton) {
         factor = 1.0;
       }
-      if(rubberBandTool()->mouseButton() == Qt::MiddleButton + Qt::ControlModifier) {
+      if(rubberBandTool()->mouseButton() == (Qt::MiddleButton & Qt::ControlModifier)) {
         factor = 0.0;
       }
 //      MdiCubeViewport *d = cubeViewport();

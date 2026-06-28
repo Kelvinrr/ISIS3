@@ -5,6 +5,7 @@
 #include <QDomElement>
 #include <QDomNode>
 #include <QFile>
+#include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 
@@ -90,9 +91,8 @@ namespace Isis {
 
         // Parse the XML with Qt's XML parser... kindof convoluted, I'm sorry
         QDomDocument document;
-        QString error;
-        int errorLine, errorCol;
-        if ( document.setContent(QString(xml), &error, &errorLine, &errorCol) ) {
+        QDomDocument::ParseResult result = document.setContent(QString(xml));
+        if ( bool(result) ) {
           QDomElement rootElement = document.firstChild().toElement();
 
           for ( QDomNode node = rootElement.firstChild();
@@ -120,9 +120,9 @@ namespace Isis {
         }
         else {
           QString err = "Unable to read XML. The reason given was [";
-          err += error;
-          err += "] on line [" + toString(errorLine) + "] column [";
-          err += toString(errorCol) + "]";
+          err += result.errorMessage;
+          err += "] on line [" +  QString::number(result.errorLine) + "] column [";
+          err += QString::number(result.errorColumn) + "]";
           throw IException(IException::Io, err, _FILEINFO_);
         }
       }
@@ -133,7 +133,7 @@ namespace Isis {
 
 
       if (ui.GetBoolean("CHECKVERSION") ) {
-        QStringList remoteVersion = otherVersion.split(QRegExp("\\s+"))[0].split(QRegExp("\\."));
+        QStringList remoteVersion = otherVersion.split(QRegularExpression("\\s+"))[0].split(QRegularExpression("\\."));
         if ( remoteVersion[0].toInt() <= 3 && remoteVersion[1].toInt() < 5) {
 
          QString msg ="The SPICE server only supports Isis versions greater than or equal to 3.5.*.*.";
@@ -180,7 +180,7 @@ namespace Isis {
       Kernel lk, pck, targetSpk, fk, ik, sclk, spk, iak, dem, exk;
       QList< priority_queue<Kernel> > ck;
       lk        = baseKernels.leapSecond(label);
-      pck       = baseKernels.targetAttitudeShape(label);
+      pck       = ckKernels.targetAttitudeShape(label);
       targetSpk = baseKernels.targetPosition(label);
       ik        = baseKernels.instrument(label);
       sclk      = baseKernels.spacecraftClock(label);

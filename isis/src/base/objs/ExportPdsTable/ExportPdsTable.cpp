@@ -9,7 +9,7 @@ find files of those names at the top level of this repository. **/
 #include <cmath>
 #include <iostream>
 
-#include "Endian.h"
+#include "IEndian.h"
 #include "EndianSwapper.h"
 #include "IString.h"
 #include "IException.h"
@@ -93,7 +93,7 @@ namespace Isis {
     // create an array of nulls to pad
     // from the end of each row to the end of the record
     int numRowNulls = outputFileRecordBytes - m_rowBytes;
-    char endRowPadding[numRowNulls];
+    std::vector<char> endRowPadding(numRowNulls);
     for (int i = 0; i < numRowNulls; i++) {
       endRowPadding[i] = '\0';
     }
@@ -104,11 +104,11 @@ namespace Isis {
 
     for(int recIndex = 0; recIndex < m_isisTable->Records(); recIndex++) {
       TableRecord record = (*m_isisTable)[recIndex];
-      char rowBuffer[record.RecordSize()];
-      Pack(record, rowBuffer, endianSwap);
+      std::vector<char> rowBuffer(record.RecordSize());
+      Pack(record, &rowBuffer[0], endianSwap);
       int i = recIndex*m_outputRecordBytes;
-      memmove(pdsTableBuffer + i, &rowBuffer, record.RecordSize());
-      memmove(pdsTableBuffer + i + m_rowBytes, &endRowPadding, numRowNulls);
+      memmove(pdsTableBuffer + i, &rowBuffer[0], record.RecordSize());
+      memmove(pdsTableBuffer + i + m_rowBytes, &endRowPadding[0], numRowNulls);
     }
     return fillMetaData();
   }
@@ -218,7 +218,7 @@ namespace Isis {
     QString pdsTableName;
     pdsTableName.push_back(tableName[0]);
     for (int i = 1 ; i < tableName.size() ; i++) {
-      if (tableName[i] >= 65 && tableName[i] <= 90) {
+      if (tableName[i].toLatin1() >= 65 && tableName[i].toLatin1() <= 90) {
         pdsTableName.push_back('_');
         pdsTableName.push_back(tableName[i]);
       }

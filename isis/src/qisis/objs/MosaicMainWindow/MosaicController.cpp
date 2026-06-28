@@ -12,6 +12,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QProgressBar>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QUuid>
 #include <QtConcurrentMap>
@@ -120,6 +121,12 @@ namespace Isis {
       imageProps += image->toPvl();
     }
 
+    PvlObject qtInfoObject("QtInfo");
+    QDataStream stream;
+    PvlKeyword qtVersionKeyword("QtVersion", QString::number(stream.version()));
+    qtVersionKeyword.addCommentWrapped("See QDataStream Version for more info on QT version");
+    qtInfoObject += qtVersionKeyword;
+    projFile += qtInfoObject;
     projFile += imageProps;
     projFile += m_fileList->toPvl();
     projFile += m_scene->toPvl();
@@ -241,14 +248,27 @@ namespace Isis {
         convertV1ToV2(projectPvl);
       }
 
+      PvlKeyword qtVersionKeyword;
+      if (projectPvl.hasObject("QtInfo")) {
+        PvlObject &qtInfoObject = projectPvl.findObject("QtInfo");
+        qtVersionKeyword = qtInfoObject["QtVersion"];
+      }
+      else {
+        qtVersionKeyword = PvlKeyword("QtVersion", QString::number(QDataStream::Qt_5_15));
+      }
+
       PvlObject &projImages(projectPvl.findObject("Images"));
 
-      if (projectPvl.hasObject("MosaicScene"))
-        m_scene->fromPvl(projectPvl.findObject("MosaicScene"));
+      if (projectPvl.hasObject("MosaicScene")) {
+        PvlObject &mosaicScene = projectPvl.findObject("MosaicScene");
+        mosaicScene += qtVersionKeyword;
+        m_scene->fromPvl(mosaicScene);
+      }
 
       if (projectPvl.hasObject("ImageFileList"))
         m_fileList->fromPvl(projectPvl.findObject("ImageFileList"));
 
+      m_imageReader->setQtVersion(int(qtVersionKeyword));
       openProjectImages(projImages);
     }
     catch(IException &e) {
@@ -371,7 +391,7 @@ namespace Isis {
 
       image += displayProps;
 
-      imageFileToNewId[fileName] = newId.toString().replace(QRegExp("[{}]"), "");
+      imageFileToNewId[fileName] = newId.toString().replace(QRegularExpression("[{}]"), "");
     }
 
     PvlObject &fileListOpts = project.findObject("MosaicFileList");

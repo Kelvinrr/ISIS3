@@ -12,6 +12,7 @@ find files of those names at the top level of this repository. **/
 #include <QDebug>
 #include <QFile>
 #include <QList>
+#include <QRegularExpression>
 #include <QString>
 #include <QStringList>
 #include <QUuid>
@@ -332,7 +333,7 @@ namespace Isis {
    * @return @b QString A unique ID for this BundleSolutionInfo object
    */
   QString BundleSolutionInfo::id() const {
-    return m_id->toString().remove(QRegExp("[{}]"));
+    return m_id->toString().remove(QRegularExpression("[{}]"));
   }
 
 
@@ -1138,21 +1139,21 @@ namespace Isis {
       header += "                                   Lidar RMS(pixels)";
     }
     // This is padded by an extra 11 to move it center to the table
-    snprintf(buf, sizeof(buf),"%*s\n", header.length() + 11 + filePadding, header.toLatin1().data());
+    snprintf(buf, sizeof(buf),"%*s\n", (int)header.length() + 11 + filePadding, header.toLatin1().data());
     fpOut << buf;
 
     QString dividers("***************************   *******************************************");
     if (m_statisticsResults->outputLidarData()) {
       dividers += "   *******************************************";
     }
-    snprintf(buf, sizeof(buf),"%*s\n", dividers.length() + 1 + filePadding, dividers.toLatin1().data());
+    snprintf(buf, sizeof(buf),"%*s\n", (int)dividers.length() + 1 + filePadding, dividers.toLatin1().data());
     fpOut << buf;
 
     QString fields("|  Accepted  |   Total    |   |   Samples   |    Lines    |    Total    |");
     if (m_statisticsResults->outputLidarData()) {
       fields += "   |   Samples   |    Lines    |    Total    |";
     }
-    snprintf(buf, sizeof(buf),"%*s\n", fields.length() + 1 + filePadding, fields.toLatin1().data());
+    snprintf(buf, sizeof(buf),"%*s\n", (int)fields.length() + 1 + filePadding, fields.toLatin1().data());
     fpOut << buf;
 
     int numMeasures, numLidarMeasures;

@@ -15,6 +15,9 @@ find files of those names at the top level of this repository. **/
 #include "Application.h"
 #include "PvlObject.h"
 
+#include "cpl_vsi.h"
+
+
 using namespace std;
 namespace Isis {
   /**
@@ -100,25 +103,64 @@ namespace Isis {
    * @throws IException::Io "Could not open label file."
    * @throws IException::Unknown "XML read/parse error in file."
    */
-  void OriginalXmlLabel::readFromXmlFile(const FileName &xmlFileName) {
-    QFile xmlFile(xmlFileName.expanded());
-     if ( !xmlFile.open(QIODevice::ReadOnly) ) {
-       QString msg = "Could not open label file [" + xmlFileName.expanded() +
-                     "].";
-       throw IException(IException::Io, msg, _FILEINFO_);
-     }
+  void OriginalXmlLabel::readFromXmlFile(const FileName &xmlFileName, bool useNamespace) {
+    QString errmsg;
+    int errline, errcol;
 
-     QString errmsg;
-     int errline, errcol;
-     if ( !m_originalLabel.setContent(&xmlFile, false, &errmsg, &errline, &errcol) ) {
-       xmlFile.close();
-       QString msg = "XML read/parse error in file [" + xmlFileName.expanded()
+    if (xmlFileName.expanded().contains("/vsi")) {
+      GDALDataset *dataset = GDALDataset::FromHandle(GDALOpen(xmlFileName.expanded().toStdString().c_str(), GA_ReadOnly));
+      if (!dataset) {
+        // If VSI open failed, then throw the error
+        QString msg = "Failed opening GDALDataset from [" + xmlFileName.name() + "]";
+        throw IException(IException::Programmer, msg, _FILEINFO_);
+      }
+
+      const char* domainPDS4 = "xml:PDS4";
+      CPLStringList metadata = CPLStringList(dataset->GetMetadata(domainPDS4), false);
+      if (metadata.Count() > 0 && metadata[0] != nullptr) {
+        const char *metadataXmlString = metadata[0];
+        QString xmlString = QString::fromUtf8(metadataXmlString);
+        if (!m_originalLabel.setContent(xmlString, useNamespace, &errmsg, &errline, &errcol)) {
+          GDALClose(dataset);
+          QString msg = "XML read/parse error in file [" + xmlFileName.expanded()
             + "] at line [" + toString(errline) + "], column [" + toString(errcol)
             + "], message: " + errmsg;
-       throw IException(IException::Unknown, msg, _FILEINFO_);
-     }
+          throw IException(IException::Programmer, msg, _FILEINFO_);
+        }
+      }
+      else {
+        GDALClose(dataset);
+        QString msg = "Could not find metadata for " + QString(domainPDS4) + " in GDALDataset.";
+        throw IException(IException::Programmer, msg, _FILEINFO_);
+      } 
+      GDALClose(dataset);
+    } 
+    else {
+      QFile xmlFile(xmlFileName.expanded());
+      if (!xmlFile.open(QIODevice::ReadOnly)) {
+        QString msg = "Could not open label file [" + xmlFileName.expanded() + "].";
+        throw IException(IException::Io, msg, _FILEINFO_);
+      }
 
-     xmlFile.close();
+      QString errmsg;
+      int errline, errcol;
+      if (!m_originalLabel.setContent(&xmlFile, useNamespace, &errmsg, &errline, &errcol)) {
+        if (useNamespace) {
+          xmlFile.seek(0);
+          if (m_originalLabel.setContent(&xmlFile, false)) {
+            xmlFile.close();
+            return;
+          }
+        }
+        xmlFile.close();
+        QString msg = "XML read/parse error in file [" + xmlFileName.expanded()
+              + "] at line [" + toString(errline) + "], column [" + toString(errcol)
+              + "], message: " + errmsg;
+        throw IException(IException::Unknown, msg, _FILEINFO_);
+      }
+
+      xmlFile.close();
+    }
   }
 
 

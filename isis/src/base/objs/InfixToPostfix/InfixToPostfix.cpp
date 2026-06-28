@@ -32,6 +32,7 @@ namespace Isis {
     p_operators.push_back(new InfixOperator(7, "^"));
     p_operators.push_back(new InfixOperator(5, "/"));
     p_operators.push_back(new InfixOperator(5, "*"));
+    p_operators.push_back(new InfixOperator(5, "%"));
     p_operators.push_back(new InfixOperator(3, "<<"));
     p_operators.push_back(new InfixOperator(3, ">>"));
     p_operators.push_back(new InfixOperator(2, "+"));
@@ -692,7 +693,7 @@ namespace Isis {
   }
 
   void InfixToPostfix::checkArgument(QString funcName, int argNum, QString argument) {
-    argument = argument.remove(QRegExp("[ ()]"));
+    argument = argument.remove(QRegularExpression("[ ()]"));
 
     if(argument == "") {
       throw IException(IException::User,

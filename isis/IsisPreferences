@@ -74,6 +74,14 @@ EndGroup
 #EndGroup
 
 ########################################################
+# For Future Work: Not currently being implemented
+########################################################
+
+# Group = ShapeModelWeb
+#   URL = "https://stac.astrogeology.usgs.gov/api/search/"
+# EndGroup
+
+########################################################
 # Customize how session logging is handled
 #
 # TerminalOutput = On | Off
@@ -193,8 +201,8 @@ EndGroup
 #
 ########################################################
 
-Group = WebSpice
-  UseWebSpice = "false"
+Group = SpiceQL
+  UseSpiceQL = "false"
 EndGroup
 
 ########################################################
@@ -224,6 +232,7 @@ Group = DataDirectory
   Hayabusa2    = $ISISDATA/hayabusa2
   Juno         = $ISISDATA/juno
   Kaguya       = $ISISDATA/kaguya
+  Kplo         = $ISISDATA/kplo
   Lo           = $ISISDATA/lo
   Lro          = $ISISDATA/lro
   Mariner10    = $ISISDATA/mariner10

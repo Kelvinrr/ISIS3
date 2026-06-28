@@ -39,7 +39,7 @@ namespace Isis {
       Blob toBlob() const;
 
       void fromBlob(Isis::Blob blob);
-      void readFromXmlFile(const FileName &xmlFileName);
+      void readFromXmlFile(const FileName &xmlFileName, bool useNamespace=false);
       const QDomDocument &ReturnLabels() const;
 
     protected:

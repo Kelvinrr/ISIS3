@@ -13,7 +13,7 @@ find files of those names at the top level of this repository. **/
 #include <QStringList>
 
 #include "Cube.h"
-#include "Endian.h"
+#include "IEndian.h"
 #include "FileName.h"
 #include "IException.h"
 #include "PixelType.h"
@@ -527,6 +527,7 @@ namespace Isis {
 
       using CubeAttribute<CubeAttributeOutput>::toString;
 
+      static QString toString(Cube::Format);
 
     private:
       bool isByteOrder(QString attribute) const;
@@ -534,8 +535,6 @@ namespace Isis {
       bool isLabelAttachment(QString attribute) const;
       bool isPixelType(QString attribute) const;
       bool isRange(QString attribute) const;
-
-      static QString toString(Cube::Format);
 
       /**
        * @brief Output cube range tracker

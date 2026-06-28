@@ -15,12 +15,15 @@ find files of those names at the top level of this repository. **/
 #include "IException.h"
 #include "IString.h"
 #include "Message.h"
+#include "OriginalXmlLabel.h"
 #include "Pvl.h"
 #include "PvlContainer.h"
 #include "PvlGroup.h"
 #include "PvlKeyword.h"
 #include "PvlObject.h"
 #include "XmlToPvlTranslationManager.h"
+
+#include "cpl_vsi.h"
 
 
 using namespace std;
@@ -458,28 +461,11 @@ namespace Isis {
    *
    * @param xmlFileName The Xml label file.
    *
-   * @throws IException::Unknown "Could not open label file."
-   * @throws IException::Unknown "XML read/parse error in file."
    */
   void XmlToPvlTranslationManager::parseFile(const FileName &xmlFileName) {
-     QFile xmlFile(xmlFileName.expanded());
-     if ( !xmlFile.open(QIODevice::ReadOnly) ) {
-       QString msg = "Could not open label file [" + xmlFileName.expanded() +
-                     "].";
-       throw IException(IException::Unknown, msg, _FILEINFO_);
-     }
-
-     QString errmsg;
-     int errline, errcol;
-     if ( !m_xmlLabel.setContent(&xmlFile, false, &errmsg, &errline, &errcol) ) {
-       xmlFile.close();
-       QString msg = "XML read/parse error in file [" + xmlFileName.expanded()
-            + "] at line [" + toString(errline) + "], column [" + toString(errcol)
-            + "], message: " + errmsg;
-       throw IException(IException::Unknown, msg, _FILEINFO_);
-     }
-
-     xmlFile.close();
-     return;
+    OriginalXmlLabel xmlLabel;
+    xmlLabel.readFromXmlFile(xmlFileName, false);
+    m_xmlLabel = xmlLabel.ReturnLabels();
+    return;
   }
 } // end namespace isis

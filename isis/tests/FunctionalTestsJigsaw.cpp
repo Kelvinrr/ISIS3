@@ -3,6 +3,7 @@
 
 #include <QtMath>
 #include <QFile>
+#include <QRegularExpression>
 #include <QScopedPointer>
 #include <highfive/H5DataSet.hpp>
 #include <highfive/H5File.hpp>
@@ -20,6 +21,7 @@
 #include "SerialNumber.h"
 #include "BundleAdjust.h"
 #include "BundleSettings.h"
+#include "CameraFactory.h"
 
 #include "jigsaw.h"
 
@@ -1011,7 +1013,7 @@ End)");
   EXPECT_THAT(lines[76].toStdString(), HasSubstr("RADII: MEAN"));
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, lines[77].trimmed(), "");
 
-  QStringList columns = lines[160].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  QStringList columns = lines[160].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "POLE");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[1], "RA");
   EXPECT_NEAR(columns[2].toDouble(), 269.9949, 0.0001);
@@ -1020,7 +1022,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[5], "FREE");
   EXPECT_NEAR(columns[6].toDouble(), 0.00167495, 0.0001);
 
-  columns = lines[161].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[161].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "POLE");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[1], "DEC");
   EXPECT_NEAR(columns[2].toDouble(), 66.5392, 0.0001);
@@ -1029,7 +1031,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[5], "FREE");
   EXPECT_NEAR(columns[6].toDouble(), 0.00068524, 0.0001);
 
-  columns = lines[162].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[162].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "PM");
   EXPECT_NEAR(columns[1].toDouble(), 38.32132, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), -383.36347956, 0.0001);
@@ -1037,7 +1039,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[4], "FREE");
   EXPECT_NEAR(columns[5].toDouble(), 1.55731615, 0.0001);
 
-  columns = lines[163].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[163].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "PMv");
   EXPECT_NEAR(columns[1].toDouble(), 13.17635815, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), -0.03669501, 0.0001);
@@ -1045,7 +1047,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[4], "FREE");
   EXPECT_NEAR(columns[5].toDouble(), 0.00015007, 0.0001);
 
-  columns = lines[164].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[164].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "MeanRadius");
   EXPECT_NEAR(columns[1].toDouble(), 1737.4, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), -1.67807036, 0.0001);
@@ -1171,7 +1173,7 @@ End)");
   EXPECT_THAT(lines[76].toStdString(), HasSubstr("RADII: TRIAXIAL"));
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, lines[77].trimmed(), "");
 
-  QStringList columns = lines[160].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  QStringList columns = lines[160].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "POLE");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[1], "RA");
   EXPECT_NEAR(columns[2].toDouble(), 269.9949, 0.0001);
@@ -1180,7 +1182,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[5], "FREE");
   EXPECT_NEAR(columns[6].toDouble(), 0.00199725, 0.0001);
 
-  columns = lines[161].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[161].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "POLE");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[1], "DEC");
   EXPECT_NEAR(columns[2].toDouble(), 66.5392, 0.0001);
@@ -1189,7 +1191,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[5], "FREE");
   EXPECT_NEAR(columns[6].toDouble(), 0.00149539, 0.0001);
 
-  columns = lines[162].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[162].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "PM");
   EXPECT_NEAR(columns[1].toDouble(), 38.32132, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), -291.78617547, 0.0001);
@@ -1197,7 +1199,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[4], "FREE");
   EXPECT_NEAR(columns[5].toDouble(), 2.00568417, 0.0001);
 
-  columns = lines[163].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[163].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "PMv");
   EXPECT_NEAR(columns[1].toDouble(), 13.17635815, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), -0.02785056, 0.0001);
@@ -1205,7 +1207,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[4], "FREE");
   EXPECT_NEAR(columns[5].toDouble(), 0.00019333, 0.0001);
 
-  columns = lines[164].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[164].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "RadiusA");
   EXPECT_NEAR(columns[1].toDouble(), 1737.4, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), 6.87282091, 0.0001);
@@ -1213,7 +1215,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[4], "FREE");
   EXPECT_NEAR(columns[5].toDouble(), 1.23289971, 0.0001);
 
-  columns = lines[165].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[165].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "RadiusB");
   EXPECT_NEAR(columns[1].toDouble(), 1737.4, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), 2.34406319, 0.0001);
@@ -1221,7 +1223,7 @@ End)");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[4], "FREE");
   EXPECT_NEAR(columns[5].toDouble(), 12.52974045, 0.0001);
 
-  columns = lines[166].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[166].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, columns[0], "RadiusC");
   EXPECT_NEAR(columns[1].toDouble(), 1737.4, 0.0001);
   EXPECT_NEAR(columns[2].toDouble(), -37.55670044, 0.0001);
@@ -1640,6 +1642,7 @@ TEST_F(CSMNetwork, FunctionalTestJigsawCSM) {
                             "bundleout_txt=yes",
                             "update=yes",
                             "csmsolveset=adjustable",
+                            "output_adjusted_csmstate=yes",
                             "POINT_LATITUDE_SIGMA=1125",
                             "POINT_LONGITUDE_SIGMA=1125",
                             "file_prefix="+tempDir.path()+"/"
@@ -1726,6 +1729,64 @@ TEST_F(CSMNetwork, FunctionalTestJigsawCSM) {
   EXPECT_NEAR(camJ->getParameterValue(0), 0.0, 0.00000001);
   EXPECT_NEAR(camJ->getParameterValue(1), 0.0, 0.00000001);
   EXPECT_NEAR(camJ->getParameterValue(2), 128.0, 0.00000001);
+
+  // Verify OUTPUT_ADJUSTED_CSMSTATE wrote external state files
+  QString stateFileB = tempDir.path() + "/Test_B.adjusted_state.json";
+  ASSERT_TRUE(std::filesystem::exists(stateFileB.toStdString()));
+
+  // Verify the state file contains valid CSM model state
+  std::ifstream ifs(stateFileB.toStdString());
+  std::string firstLine;
+  std::getline(ifs, firstLine);
+  EXPECT_EQ(firstLine, "TestCsmModel");
+  json jf = json::parse(ifs);
+  EXPECT_TRUE(jf.contains("center_latitude"));
+  EXPECT_TRUE(jf.contains("center_longitude"));
+  EXPECT_TRUE(jf.contains("scale"));
+
+  // Second pass: run jigsaw with CSMLIST using the adjusted state files
+  // from the first pass. This tests constructModelFromIsdOrState with
+  // model state input (not ISD).
+  QStringList fNames = {"Test_A", "Test_B", "Test_C", "Test_D", "Test_E",
+                         "Test_F", "Test_G", "Test_H", "Test_I", "Test_J"};
+  QString isdListPath = tempDir.path() + "/isd.lis";
+  std::ofstream isdListFile(isdListPath.toStdString());
+  for (const QString &name : fNames)
+    isdListFile << (tempDir.path() + "/" + name + ".adjusted_state.json")
+                   .toStdString() << "\n";
+  isdListFile.close();
+
+  QString outCnetFileName2 = prefix.path() + "/outTemp2.net";
+  QVector<QString> args2 = {"fromlist=" + cubeListFile,
+                            "csmlist=" + isdListPath,
+                            "cnet=data/CSMNetwork/test.net",
+                            "onet=" + outCnetFileName2,
+                            "maxits=10",
+                            "csmsolveset=adjustable",
+                            "POINT_LATITUDE_SIGMA=1125",
+                            "POINT_LONGITUDE_SIGMA=1125",
+                            "file_prefix=" + tempDir.path() + "/isd"
+                           };
+
+  UserInterface options2(APP_XML, args2);
+  try {
+    jigsaw(options2);
+  }
+  catch (IException &e) {
+    FAIL() << "Failed CSMLIST bundle: " << e.what() << std::endl;
+  }
+
+  // Verify CSMLIST pass wrote adjusted state files
+  QString isdStateB = tempDir.path() + "/isd_Test_B.adjusted_state.json";
+  ASSERT_TRUE(std::filesystem::exists(isdStateB.toStdString()));
+
+  // Verify state file is valid
+  std::ifstream ifs2(isdStateB.toStdString());
+  std::string firstLine2;
+  std::getline(ifs2, firstLine2);
+  EXPECT_EQ(firstLine2, "TestCsmModel");
+  json jf2 = json::parse(ifs2);
+  EXPECT_TRUE(jf2.contains("center_latitude"));
 }
 
 
@@ -1869,11 +1930,11 @@ TEST_F(LidarNetwork, FunctionalTestJigsawLidar) {
   EXPECT_THAT(lidarRangeConstraints[0].trimmed().toStdString(), HasSubstr("Lidar Range Constraints"));
   EXPECT_EQ(lidarRangeConstraints[1].trimmed().toInt(), lidarDataIn.numberSimultaneousMeasures());
 
-  QStringList columns = lines[136].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  QStringList columns = lines[136].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   ASSERT_GE(columns.size(), 10);
   EXPECT_EQ(columns[6].toInt(), nValidMeasuresCube1);
   EXPECT_EQ(columns[7].toInt(), nMeasuresCube1);
-  columns = lines[137].split(QRegExp("\\s+"), Qt::SkipEmptyParts);
+  columns = lines[137].split(QRegularExpression("\\s+"), Qt::SkipEmptyParts);
   ASSERT_GE(columns.size(), 10);
   EXPECT_EQ(columns[6].toInt(), nValidMeasuresCube2);
   EXPECT_EQ(columns[7].toInt(), nMeasuresCube2);
@@ -1955,30 +2016,3 @@ TEST_F(ApolloNetwork, FunctionalTestJigsawSaveApplyValues) {
   file.flush();
 }
 
-TEST_F(ObservationPair, FunctionalTestJigsawOutputCsmState) {
-
-  QTemporaryDir prefix;
-  QString outCnetFileName = prefix.path() + "/outTemp.net";
-
-  QVector<QString> args = {"fromlist="+cubeListFile, "cnet="+cnetPath, "onet="+outCnetFileName,
-  "camsolve=None", "spsolve=position", "output_adjusted_csmstate=yes"};
-
-  UserInterface ui(APP_XML, args);
-
-  try {
-    jigsaw(ui);
-  }
-  catch (IException &e) {
-    FAIL() << "Unable to bundle: " << e.what() << std::endl;
-  }
-
-  // Check state.json file was created
-  QString csmStateOutput = tempDir.path()+"/observationPairR.state.json";
-  ASSERT_TRUE(std::filesystem::exists(csmStateOutput.toStdString()));
-  
-  std::ifstream ifs(csmStateOutput.toStdString());
-  ifs.ignore(10000, '\n');
-  json jf = json::parse(ifs);
-  EXPECT_EQ(jf["m_modelName"], "USGS_ASTRO_LINE_SCANNER_SENSOR_MODEL");
-  EXPECT_EQ(jf["m_centerEphemerisTime"], 300761292.8556427);
-}

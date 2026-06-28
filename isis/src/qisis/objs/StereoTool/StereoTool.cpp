@@ -194,7 +194,7 @@ namespace Isis {
 
     QAction *closeStereoTool = new QAction(m_stereoTool);
     closeStereoTool->setText("&Close");
-    closeStereoTool->setShortcut(Qt::ALT + Qt::Key_F4);
+    closeStereoTool->setShortcut(Qt::ALT | Qt::Key_F4);
     whatsThis =
       "<b>Function:</b> Closes the Stereo Tool window for this point \
        <p><b>Shortcut:</b> Alt+F4 </p>";
@@ -321,7 +321,7 @@ namespace Isis {
     connect( helpButton, SIGNAL( clicked() ), this, SLOT( showHelp() ));
 
     QHBoxLayout *layout = new QHBoxLayout;
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(AbstractPlotTool::createToolBarWidget(parent) );
     layout->addWidget(boxLabel);
     layout->addWidget(m_radiusBox);

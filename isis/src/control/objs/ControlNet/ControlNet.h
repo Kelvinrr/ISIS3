@@ -31,7 +31,6 @@ find files of those names at the top level of this repository. **/
 
 template< typename A, typename B > class QHash;
 template< typename T > class QList;
-template< typename A, typename B > struct QPair;
 template< typename T > class QSet;
 
 class QMutex;
@@ -346,7 +345,8 @@ namespace Isis {
       void SetCreatedDate(const QString &date);
       void SetDescription(const QString &newDescription);
       void SetImages(const QString &imageListFile);
-      void SetImages(SerialNumberList &list, Progress *progress = 0);
+      void SetImages(SerialNumberList &list, Progress *progress = 0,
+                     const QStringList &isdFiles = QStringList());
 
       void SetModifiedDate(const QString &date);
       void SetMutex(QMutex *mutex);

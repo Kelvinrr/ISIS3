@@ -63,8 +63,9 @@ namespace Isis {
     CameraFocalPlaneMap *focalMap = new CameraFocalPlaneMap(this, naifIkCode());
 
     //  Retrieve boresight location from instrument kernel (IK) (addendum?)
+    // Shift sample by 0.5 to align ISIS with the CSM/ALE convention.
     QString centerKey = "INS" + toString((int)naifIkCode()) + "_CENTER";
-    double sampleCenter = getDouble(centerKey, 0);
+    double sampleCenter = getDouble(centerKey, 0) + 0.5;
     double lineCenter = getDouble(centerKey, 1);
 
     focalMap->SetDetectorOrigin(sampleCenter, lineCenter);
@@ -79,15 +80,12 @@ namespace Isis {
     new LineScanCameraGroundMap(this);
     new LineScanCameraSkyMap(this);
 
-
     // Set proper end frame
     int tmcFrame(0);
     if (naifIkCode() == -152210) {
-      // Frame DAWN_VIR_VIS : DAWN_VIR_VIS_ZERO
       tmcFrame = -152220;
     }
-    else if (naifIkCode() == -152211) { // (channelId == "IR)
-      // Frame DAWN_VIR_IR : DAWN_VIR_IR_ZERO
+    else if (naifIkCode() == -152211) {
       tmcFrame = -152221;
     }
     else if (naifIkCode() == -152212) {

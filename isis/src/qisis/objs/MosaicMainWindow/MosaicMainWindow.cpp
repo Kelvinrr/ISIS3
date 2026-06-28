@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QRegExp>
 #include <QSettings>
 #include <QScrollArea>
 #include <QStatusBar>
@@ -103,7 +104,7 @@ namespace Isis {
     bool projectLoaded = false;
 
     foreach (QString argument, args) {
-      QRegExp cubeName(".*\\.cub$", Qt::CaseInsensitive);
+      QRegExp cubeName(".*\\.(cub|tif|tiff)$", Qt::CaseInsensitive);
       QRegExp cubeListName(".*\\.(lis|txt)$", Qt::CaseInsensitive);
       QRegExp projectName(".*\\.mos$", Qt::CaseInsensitive);
 
@@ -187,7 +188,7 @@ namespace Isis {
 
     QAction *saveProject = new QAction(this);
     saveProject->setText("Save Project");
-    saveProject->setShortcut(Qt::CTRL + Qt::Key_S);
+    saveProject->setShortcut(Qt::CTRL | Qt::Key_S);
     saveProject->setIcon(QPixmap(QString::fromStdString(iconDir.c_str()) + "/mActionFileSave.png"));
     m_actionsRequiringOpen.append(saveProject);
     connect(saveProject, SIGNAL(triggered()), this, SLOT(saveProject()));
@@ -274,7 +275,7 @@ namespace Isis {
    */
   void MosaicMainWindow::open() {
     QStringList filterList;
-    filterList.append("Isis cubes (*.cub)");
+    filterList.append("Isis Cubes (*.cub *.tif *.tiff)");
     filterList.append("All Files (*)");
 
     QDir directory = m_lastOpenedFile.dir();

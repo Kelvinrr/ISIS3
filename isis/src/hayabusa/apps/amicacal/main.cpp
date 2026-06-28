@@ -251,6 +251,9 @@ void IsisMain() {
          " MODE=SCALE" +
          " LSCALE=" + scale +
          " SSCALE=" + scale;
+      if (ui.GetParamPreference() != "") { 
+        parameters += " -PREFERENCE=" + ui.GetParamPreference();
+      }
 
       try {
         ProgramLauncher::RunIsisProgram("reduce", parameters);
@@ -671,7 +674,7 @@ QString loadCalibrationVariables(const QString &config, Cube *iCube)  {
   }
   catch(IException &e) {
     try{
-      bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+      bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
       auto [output, kernels]  = SpiceQL::strSclkToEt(g_hayabusaNaifCode, g_startTime.toLatin1().data(), "amica", useWeb);
       obsStartTime = output;
     }

@@ -1,4 +1,5 @@
 #include "cam2map.h"
+#include "AspMapProjection.h"
 
 #include "Application.h"
 #include "Camera.h"
@@ -10,6 +11,8 @@
 #include "Pvl.h"
 #include "Target.h"
 #include "TProjection.h"
+
+#include <proj.h>
 
 using namespace std;
 
@@ -29,9 +32,75 @@ namespace Isis {
     }
     icube.open(ui.GetCubeName("FROM"));
 
+    if (ui.GetBoolean("ASP_MAP")) {
+      // ASP_MAP: run ASP-compatible per-pixel exact projection and return.
+      // Bypasses ISIS's projection factory, rubber sheeting, and PVL machinery.
+      asp::mapproject(&icube, ui);
+      return;
+    }
+
     // Get the map projection file provided by the user
     Pvl userMap;
-    userMap.read(ui.GetFileName("MAP"));
+    if (ui.GetBoolean("USEPROJ")) {
+      PvlGroup mappingGroup("Mapping");
+      mappingGroup.addKeyword(PvlKeyword("ProjectionName", "IProj"));
+      QString userProjStr = ui.GetAsString("PROJString");
+      // PROJ4 strings produce a coordinate operation, not a CRS.
+      // proj_get_ellipsoid needs a CRS, so add +type=crs if needed.
+      if (userProjStr.startsWith("+proj=") && !userProjStr.contains("+type=crs"))
+        userProjStr = "+type=crs " + userProjStr;
+      mappingGroup.addKeyword(PvlKeyword("ProjStr", userProjStr));
+      QString projStr = mappingGroup["ProjStr"][0];
+      PJ_CONTEXT *projContext = proj_context_create();
+      proj_log_level(projContext, PJ_LOG_ERROR);
+
+      /* Create a projection. */
+      PJ *outputProj = proj_create(projContext, projStr.toStdString().c_str());
+
+      if (!outputProj) {
+        proj_context_destroy(projContext);
+        QString msg = "Unable to create projection from [" + projStr + "].";
+        throw IException(IException::User, msg, _FILEINFO_);
+      }
+
+      // Read the radii information from the PROJ projection
+      PJ *ellipsoid = proj_get_ellipsoid(projContext, outputProj);
+
+      if (ellipsoid == nullptr) {
+        proj_destroy(outputProj);
+        proj_context_destroy(projContext);
+        QString msg = "Unable to create ellipsoid from [" + projStr + "]";
+        throw IException(IException::User, msg, _FILEINFO_);
+      }
+
+      double equatorialRadius;
+      double polarRadius;
+
+      int res = proj_ellipsoid_get_parameters(projContext, ellipsoid,
+                                              &equatorialRadius,
+                                              &polarRadius,
+                                              nullptr,
+                                              nullptr);
+
+      proj_destroy(ellipsoid);
+      proj_destroy(outputProj);
+      proj_context_destroy(projContext);
+
+      if (res == 0) {
+        QString msg = "Unable to get ellipsoid information from [" + projStr + "]";
+        throw IException(IException::User, msg, _FILEINFO_);
+      }
+
+      mappingGroup.addKeyword(PvlKeyword("EquitorialRadius", toString(equatorialRadius, 15)));
+      mappingGroup.addKeyword(PvlKeyword("PolarRadius", toString(polarRadius, 15)));
+      mappingGroup.addKeyword(PvlKeyword("LatitudeType", "Planetographic"));
+      mappingGroup.addKeyword(PvlKeyword("LongitudeDirection", "PositiveEast"));
+      mappingGroup.addKeyword(PvlKeyword("LongitudeDomain", "180", "degrees"));
+      userMap.addGroup(mappingGroup);
+    }
+    else {
+      userMap.read(ui.GetFileName("MAP"));
+    }
     PvlGroup &userGrp = userMap.findGroup("Mapping", Pvl::Traverse);
 
     cam2map(&icube, userMap, userGrp, ui, log);
@@ -58,13 +127,13 @@ namespace Isis {
       throw IException(IException::User, msg, _FILEINFO_);
     }
 
-    // Get the mapping grop
+    // Get the mapping group from the camera
     Pvl camMap;
     incam->BasicMapping(camMap);
     PvlGroup &camGrp = camMap.findGroup("Mapping");
 
     // Make the target info match the user mapfile
-    double minlat, maxlat, minlon, maxlon;
+    double minlat = 0.0, maxlat = 0.0, minlon = 0.0, maxlon = 0.0;
     incam->GroundRange(minlat, maxlat, minlon, maxlon, userMap);
     camGrp.addKeyword(PvlKeyword("MinimumLatitude", toString(minlat)), Pvl::Replace);
     camGrp.addKeyword(PvlKeyword("MaximumLatitude", toString(maxlat)), Pvl::Replace);
@@ -415,7 +484,7 @@ namespace Isis {
     }
 
     // The user didn't want to override the program smarts.  The other camera
-    // types have not be analyized.  This includes Radar and Point.  Continue to
+    // types have not be analyzed.  This includes Radar and Point.  Continue to
     // use the reverse geom option with the default tiling hints
     else {
       transform = new cam2mapReverse(icube->sampleCount(),

@@ -5,7 +5,7 @@
 
 # Specify the required version of CMake.  If your machine does not
 #  have this, it should be easy to build from https://cmake.org/download/
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 
 # Point cmake to our other CMake files.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
@@ -34,7 +34,7 @@ set(PACKAGE            "ISIS")
 set(PACKAGE_NAME       "USGS ISIS")
 
 # Version number
-set(VERSION            "9.0.0")
+set(VERSION            "10.0.0")
 string(REPLACE "." ";" VERSION_LIST ${VERSION})
 list(GET VERSION_LIST 0 VERSION_MAJOR)
 list(GET VERSION_LIST 1 VERSION_MINOR)
@@ -73,9 +73,11 @@ option(buildCore       "Build the core ISIS modules"                    ON  )
 option(buildMissions   "Build the mission specific modules"             ON  )
 option(buildStaticCore "Build libisis static as well as dynamic"        OFF )
 option(buildTests      "Set up unit, application, and module tests."    ON  )
+option(buildCoverage   "Set up code coverage"                           ON  )
 option(buildDocs       "Build the docs."                                ON  )
-option(JP2KFLAG        "Whether or not to build using JPEG2000 support" OFF )
-option(pybindings      "Turn on to build Python bindings"               ON  )
+option(pybindings      "Turn on to build Python bindings"               ON )
+option(ISIS_BUILD_SWIG "Turn on to build swig wrappers"                 OFF )
+option(BUILD_CORE_TESTS "Turn on to build core tests"                   ON )
 
 # if cmake install prefix is not set, and conda env is activated, use the
 # conda env as the install directory.
@@ -88,15 +90,10 @@ if(NOT DEFINED ENV{ISISROOT})
   message(FATAL_ERROR "Environment variable ISISROOT is not set.")
 endif()
 
-# No JPEG2000 support on Mac Arm
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
-  message(STATUS "Support for JPEG2000 is not available on Mac Arm.")
-  set(JP2KFLAG OFF)
-endif()
 
-# No docs support on Mac Arm. The xalan-c Arm package is not available on conda-forge.
-if (CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64")
-  message(STATUS "Building documentation is not available on Mac Arm.")
+# No docs support on Arm. The xalan-c Arm package is not available on conda-forge.
+if ((CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64") AND buildDocs)
+  message(WARNING "Building documentation is not available on Arm, forcing buildDocs to OFF")
   set(buildDocs OFF)
 endif()
 
@@ -139,9 +136,12 @@ add_definitions( -DISISBUILDDIR="${CMAKE_BINARY_DIR}" )
 message("CONFIGURATION")
 message("\tBUILD STATIC CORE: ${buildStaticCore}")
 message("\tBUILD TESTS: ${buildTests}")
+message("\tBUILD COVERAGE: ${buildCoverage}")
 message("\tBUILD DOCS: ${buildDocs}")
 message("\tBUILD CORE: ${buildCore}")
 message("\tBUILD MISSIONS: ${buildMissions}")
+message("\tBUILD CORE TESTS: ${BUILD_CORE_TESTS}")
+message("\tBUILD SWIG: ${ISIS_BUILD_SWIG}")
 message("\tJP2K SUPPORT: ${JP2KFLAG}")
 message("\tPYTHON BINDINGS: ${pybindings}")
 message("\tISISDATA: ${isisData}")
@@ -159,17 +159,17 @@ if(EXISTS $ENV{CONDA_PREFIX})
                                    $ENV{CONDA_PREFIX}/lib/cmake/Qt5)
 endif()
 
-# options only allow on/off but this flag is piped into ISIS as ENABLEJP2K
-# needs to be either 1 or 0 for C style true false
-if(JP2KFLAG)
- set(JP2KFLAG 1)
-endif()
 
 if(buildTests)
   include(CTest)
-  include(CodeCoverage)
   enable_testing()
+endif()
+
+if(buildCoverage AND buildTests)
+  include(CodeCoverage)
   APPEND_COVERAGE_COMPILER_FLAGS()
+elseif(buildCoverage)
+  message(WARNING "Cmake configured to build coverage without tests, please enable 'buildTests' to generate coverage")
 endif()
 
 
@@ -178,49 +178,39 @@ endif()
 # sometimes third parties do not set their rpaths correctly
 set(thirdPartyCppFlags -Wall
                        -fPIC
-                       -std=c++17
+                       -std=gnu++17
                        -DISIS_LITTLE_ENDIAN=1
                        -Wno-unused-parameter
                        -Wno-overloaded-virtual
                        -Wno-strict-aliasing
                        -DUSE_UNSTABLE_GEOS_CPP_API=1
                        -Wno-strict-overflow
-                       -DENABLEJP2K=${JP2KFLAG}
                      )
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Append CPP flags set in the third party lib file to the string set in this file.
-string(REPLACE ";" " " FLAGS_STR "${thirdPartyCppFlags}")
-
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${FLAGS_STR}" )
-
-if (NOT JP2KFLAG)
-  # Pass the NO_JP2K flag to C++
-  set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -DNO_JP2K")
-endif()
 
 # Flag to fix numeric literals problem with boost on linux
 # Add gold linker (and therefore, phtread) to speed up linux (spec. Ubuntu18.04) builds
 if(NOT APPLE)
-  set(thirdPartyCppFlags ${thirdPartyCppFlags} -fuse-ld=gold
-	                                             -pthread
-					                                     -fext-numeric-literals
-                                               -Wl,-rpath,$ENV{CONDA_PREFIX}/lib)
+  set(thirdPartyCppFlags ${thirdPartyCppFlags} -pthread
+                                               -fext-numeric-literals
+                                               -Wl,-rpath,$ENV{CONDA_PREFIX}/lib
+                                               --param=max-vartrack-size=4500000)
 endif()
 
 # Append CPP flags set in the third party lib file to the string set in this file.
 string(REPLACE ";" " " FLAGS_STR "${thirdPartyCppFlags}")
-set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${FLAGS_STR}" )
+set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${FLAGS_STR}" CACHE STRING "" FORCE)
 
 if(NOT CMAKE_BUILD_TYPE)
    set(CMAKE_BUILD_TYPE "RELEASE")
 endif()
 
 if(APPLE)
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0" CACHE STRING "" FORCE)
 else()
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Og")
+  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -Og"  CACHE STRING "" FORCE)
 endif()
 
 # Paths to required executables
@@ -228,37 +218,35 @@ if (buildDocs)
   find_program(XALAN Xalan REQUIRED)
 endif()
 
-find_program(LATEX latex)
+find_program(LATEX tectonic)
 find_program(DOXYGEN NAME doxygen PATH_SUFFIXES doxygen REQUIRED)
-find_program(UIC uic REQUIRED)
-find_program(MOC moc REQUIRED)
-find_program(RCC rcc REQUIRED)
+find_program(UIC uic PATH_SUFFIXES lib/qt6/ REQUIRED)
+find_program(MOC moc PATH_SUFFIXES lib/qt6/ REQUIRED)
+find_program(RCC rcc PATH_SUFFIXES lib/qt6/ REQUIRED)
 find_program(PROTOC protoc REQUIRED)
 
-find_package(Qt5 COMPONENTS
-                Core
-                Concurrent
-                Gui
-                Multimedia
-                MultimediaWidgets
-                Network
-                OpenGL # Needed to install mesa-common-dev for this!
-                PrintSupport
-                Qml
-                Quick
-                Script
-                ScriptTools
-                Sql
-                Svg
-                Test
-                WebChannel
-                Widgets
-                Xml
-                XmlPatterns
-                # Search this path explicitly for MacOS OpenGL Framework
-                PATHS /System/Library/Frameworks/ REQUIRED)
+find_package(Qt6 COMPONENTS
+                 Core
+                 Concurrent
+                 Core5Compat
+                 Gui
+                 Multimedia
+                 MultimediaWidgets
+                 Network
+            		 OpenGL # Needed to install mesa-common-dev for this!
+                 PrintSupport
+                 Qml
+                 Quick
+                 Sql
+                 Svg
+                 Test
+                 WebChannel
+                 Widgets
+                 Xml
+                 # Search this path explicitly for MacOS OpenGL Framework
+                 PATHS /System/Library/Frameworks/ REQUIRED CONFIG)
 
-find_package(Boost 1.59.0 REQUIRED atomic
+find_package(Boost 1.59.0 REQUIRED      atomic
                                         log
                                         regex
                                         log_setup
@@ -273,7 +261,6 @@ find_package(Boost 1.59.0 REQUIRED atomic
                                         math_tr1
                                         math_tr1f
                                         math_tr1l
-                                        test_exec_monitor
                                         date_time
                                         thread
                                         exception
@@ -281,18 +268,17 @@ find_package(Boost 1.59.0 REQUIRED atomic
                                         filesystem
                                         prg_exec_monitor
                                         program_options
-                                        unit_test_framework
                                         iostreams
                                         wave
                                         random
-                                        wserialization)
+                                        wserialization CONFIG)
 
 find_package(Ale               REQUIRED)
 find_package(Json              REQUIRED)
 find_package(BulletFloat64     REQUIRED)
 find_package(Cholmod   4.4.5   REQUIRED)
 find_package(CSM       3.0.3.3 REQUIRED)
-find_package(CSPICE    65      REQUIRED)
+find_package(cspice    67      REQUIRED CONFIG)
 find_package(Eigen             REQUIRED)
 find_package(Embree    3.13.0  REQUIRED)
 find_package(GDAL              REQUIRED CONFIG)
@@ -302,9 +288,10 @@ find_package(GSL       2.2.1   REQUIRED)
 find_package(HDF5      1.8.15  REQUIRED)
 find_package(Jama      125     REQUIRED)
 find_package(NN                REQUIRED)
-find_package(OpenCV    3.1.0   REQUIRED)
+find_package(OpenCV    4.9.0   REQUIRED CONFIG)
 find_package(PCL               REQUIRED)
 find_package(Protobuf          REQUIRED CONFIG)
+find_package(PROJ              REQUIRED CONFIG)
 find_package(Qwt       6       REQUIRED)
 find_package(SuperLU   4.3     REQUIRED)
 find_package(SpiceQL           REQUIRED)
@@ -314,7 +301,6 @@ find_package(XercesC   3.1.2   REQUIRED)
 find_package(X11       6       REQUIRED)
 find_package(nanoflann         REQUIRED)
 find_package(PNG               REQUIRED)
-find_package(Kakadu)
 find_package(Geos    3.5.0     REQUIRED)
 find_package(Armadillo         REQUIRED)
 find_package(Threads)
@@ -356,6 +342,16 @@ foreach (_variableName ${_variableNames})
   endif()
 endforeach()
 
+if (NOT OPENGL_XMESA_FOUND)
+  list(REMOVE_ITEM ALLINCDIRS OPENGL_xmesa_INCLUDE_DIR-NOTFOUND)
+endif()
+if (NOT OPENGL_GLES2_FOUND)
+  list(REMOVE_ITEM ALLINCDIRS OPENGL_GLES2_INCLUDE_DIR-NOTFOUND)
+endif()
+if (NOT OPENGL_GLES3_FOUND)
+  list(REMOVE_ITEM ALLINCDIRS OPENGL_GLES3_INCLUDE_DIR-NOTFOUND)
+endif()
+
 # get all Library variables
 foreach (_variableName ${_variableNames})
   get_filename_component(LIBDIR "${${_variableName}}" DIRECTORY)
@@ -383,7 +379,10 @@ foreach (_variableName ${_variableNames})
 endforeach()
 
 # add target based linkages to ALLLIBS variable
-list(APPEND ALLLIBS pantor::inja sensorutilities protobuf::libprotobuf embree GDAL::GDAL)
+list(APPEND ALLLIBS pantor::inja sensorutilities protobuf::libprotobuf embree GDAL::GDAL Bullet::Bullet_double CSPICE::cspice)
+
+list(APPEND ALLLIBS ${OpenCV_LIBS})
+list(APPEND ALLINCDIRS ${OpenCV_INCLUDE_DIRS})
 
 # Sometimes we add the same lib more than once (especially with LIBDIRS)
 list(REMOVE_DUPLICATES ALLLIBDIRS)
@@ -392,6 +391,10 @@ list(REMOVE_DUPLICATES ALLINCDIRS)
 
 #===============================================================================
 #===============================================================================
+
+
+get_target_property(CSPICE_INCLUDE_DIRS CSPICE::cspice INTERFACE_INCLUDE_DIRECTORIES)
+list(APPEND ALLLIBDIRS ${CSPICE_INCLUDE_DIRS})
 
 # Start setting up the build
 # Add extension to find fortran until .so symlink can be added to /usr/lib64
@@ -402,6 +405,7 @@ include_directories(SYSTEM ${ALLINCDIRS})
 link_directories(${ALLLIBDIRS})
 
 include_directories(${CMAKE_BINARY_DIR}/inc)
+
 set(CORE_LIB_NAME isis)
 message(STATUS "CORE LIB:  ${CORE_LIB_NAME}")
 
@@ -500,7 +504,7 @@ if (buildDocs)
                     -DLATEX=${LATEX}
                     -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
                     -DPACKAGE_VERSION=${PACKAGE_VERSION}
-                    -P ${CMAKE_MODULE_PATH}/BuildDocs.cmake)
+                    -P ${CMAKE_SOURCE_DIR}/cmake/BuildDocs.cmake)
 endif()
 
 # Add custom build target to copy modified header files to the build/incs directory.
@@ -645,27 +649,32 @@ add_subdirectory(cmake)
 
 if(buildTests)
   add_subdirectory(tests)
-  SET(COVERAGE_COMMAND ctest -j ${PROCESSOR_COUNT} --output-on-failure --timeout 10000 | true)
-  SET(COVERAGE_EXCLUDE ".*/unitTest.cpp" ".*/tests/.*" ".*/moc_.*" "build/.*" "gtest/.*" ".*/qisis/.*" ".*/.*/.*.h")
-  setup_target_for_coverage_gcovr_xml(
-    NAME test_coverage_xml                    # New target name
-    EXECUTABLE ${COVERAGE_COMMAND} # Executable in PROJECT_BINARY_DIR
-    DEPENDENCIES runISISTests                     # Dependencies to build first
-    BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"        # Base directory for report
-    NO_DEMANGLE                                 # Don't demangle C++ symbols
-                                                #  even if c++filt is found
-    EXCLUDE ${COVERAGE_EXCLUDE}
-    OPTIONS --print-summary
-  )
-  
-  setup_target_for_coverage_gcovr_html(
-    NAME test_coverage_html                    # New target name
-    EXECUTABLE ${COVERAGE_COMMAND} # Executable in PROJECT_BINARY_DIR
-    DEPENDENCIES runISISTests                     # Dependencies to build first
-    BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"        # Base directory for report
-    NO_DEMANGLE                                 # Don't demangle C++ symbols
-                                                #  even if c++filt is found
-    EXCLUDE ${COVERAGE_EXCLUDE}
-    OPTIONS --print-summary
-  )
+
+  if(buildCoverage)
+    SET(COVERAGE_COMMAND ctest -j ${PROCESSOR_COUNT} --output-on-failure --timeout 10000 | true)
+    SET(COVERAGE_EXCLUDE ".*/unitTest.cpp" "tests/.*" ".*/moc_.*" "build/.*" "gtest/.*" ".*/qisis/.*" ".*.h" ".*.hpp" ".*.cc")
+    SET(CODE_COVERAGE_VERBOSE TRUE)
+
+    setup_target_for_coverage_gcovr_html(
+      NAME test_coverage_html                    # New target name
+      EXECUTABLE ${COVERAGE_COMMAND} # Executable in PROJECT_BINARY_DIR
+      DEPENDENCIES runISISTests                   # Dependencies to build first
+      BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"        # Base directory for report
+      NO_DEMANGLE                                 # Don't demangle C++ symbols
+                                                  #  even if c++filt is found
+      EXCLUDE ${COVERAGE_EXCLUDE}
+      OPTIONS --print-summary
+    )
+
+    setup_target_for_coverage_gcovr_ascii(
+      NAME test_coverage_ascii                    # New target name
+      EXECUTABLE ${COVERAGE_COMMAND} # Executable in PROJECT_BINARY_DIR
+      DEPENDENCIES runISISTests                   # Dependencies to build first
+      BASE_DIRECTORY "${CMAKE_SOURCE_DIR}"        # Base directory for report
+      NO_DEMANGLE                                 # Don't demangle C++ symbols
+                                                  #  even if c++filt is found
+      EXCLUDE ${COVERAGE_EXCLUDE}
+    )
+  endif()
 endif()
+

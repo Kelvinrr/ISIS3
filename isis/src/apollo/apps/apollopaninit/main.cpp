@@ -241,15 +241,14 @@ void IsisMain() {
 
 
   //////////////////////////////////////////attach a target rotation table
-  bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+  bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
   std::string frameName;
    SpiceInt frameCode = 0;
    try {
      auto [output, kernels] = SpiceQL::getTargetFrameInfo(301, mission.toLower().toStdString(), useWeb);
-     cout << output << endl;
      frameCode = output["frameCode"].get<SpiceInt>();
      frameName = output["frameName"].get<std::string>();
-   } catch(std::invalid_argument) {
+   } catch(const std::invalid_argument &) {
      std::string naifTarget = "IAU_MOON";
      auto [frameCode, kernels] = SpiceQL::translateNameToCode(naifTarget, mission.toLower().toStdString(), useWeb);
      if(frameCode == 0) {

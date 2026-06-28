@@ -1467,10 +1467,9 @@ namespace Isis {
                      (inverseDataIndex * percentPerDataIndex)) * 1000.0));
 
 
-        QList<QString>::const_iterator foundPos =
-            std::lower_bound(xAxisPoints.begin(), xAxisPoints.end(), xValueString);
+        bool foundPos = std::binary_search(xAxisPoints.begin(), xAxisPoints.end(), xValueString);
 
-        if (foundPos == xAxisPoints.end()) {
+        if (!foundPos) {
           bool inserted = false;
 
           for (int searchIndex = 0;
@@ -1635,7 +1634,7 @@ namespace Isis {
       contextMenu.addAction(pasteAct);
 
       QAction *chosenAct = contextMenu.exec(
-          qobject_cast<QWidget *>(object)->mapToGlobal(event->pos()));
+          qobject_cast<QWidget *>(object)->mapToGlobal(event->position().toPoint()));
 
       if (chosenAct == pasteAct) {
         pasteCurve();
@@ -1872,7 +1871,7 @@ namespace Isis {
         QAction *cancelAct = new QAction("&Cancel", this);
         dropActionsMenu.addAction(cancelAct);
 
-        QAction *chosenAct = dropActionsMenu.exec(mapToGlobal(event->pos()));
+        QAction *chosenAct = dropActionsMenu.exec(mapToGlobal(event->position().toPoint()));
 
         if (chosenAct == copyAct) {
           actionToTake = Qt::CopyAction;

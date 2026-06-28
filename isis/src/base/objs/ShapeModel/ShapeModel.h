@@ -7,8 +7,7 @@ find files of those names at the top level of this repository. **/
 
 /* SPDX-License-Identifier: CC0-1.0 */
 #include <vector>
-
-template<class T> class QVector;
+#include <QVector>
 
 class QString;
 
@@ -141,6 +140,7 @@ namespace Isis {
 
       // Set m_hasIntersection
       void setHasIntersection(bool b);
+
 
       // Set current surface point
       virtual void setSurfacePoint(const SurfacePoint &surfacePoint);

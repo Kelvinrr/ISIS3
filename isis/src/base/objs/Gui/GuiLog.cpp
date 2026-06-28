@@ -23,7 +23,7 @@ namespace Isis {
 //    lo->addWidget(lb);
 
     p_textEdit = new QTextEdit;
-    p_textEdit->setFont(QFont("Courier"));
+    p_textEdit->setFont(QFont("Courier New"));
     p_textEdit->setFontPointSize(10);
 //    p_textEdit->setReadOnly(true);
 
@@ -42,7 +42,7 @@ namespace Isis {
   //! Clear the contents of the log widget
   void GuiLog::Clear() {
     p_textEdit->clear();
-    p_textEdit->setFont(QFont("Courier"));
+    p_textEdit->setFont(QFont("Courier New"));
     p_textEdit->setFontPointSize(10);
   }
 

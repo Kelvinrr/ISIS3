@@ -184,7 +184,7 @@ namespace Isis {
 
         // Sorting is always done on a COPY of the items list.
         QFuture< QList< AbstractTreeItem * > > future =
-          QtConcurrent::run(this, &AbstractTableModel::doSort,
+          QtConcurrent::run(&AbstractTableModel::doSort, this, 
               *m_sortedItems);
         m_sortingWatcher->setFuture(future);
 
@@ -269,8 +269,7 @@ namespace Isis {
       // This is accomplished by using either append or prepend.  We abstract
       // away which of these we should use (why should we care) by using the
       // variable "someKindaPend" to store the appropriate method.
-      void (QList< AbstractTreeItem * >::*someKindaPend)(
-        AbstractTreeItem * const &);
+      void (QList< AbstractTreeItem * >::*someKindaPend)(AbstractTreeItem *);
       someKindaPend = &QList< AbstractTreeItem * >::append;
 
       if (start == item2) {
@@ -503,16 +502,16 @@ namespace Isis {
     QString busy = BusyLeafItem().getData().toString();
 
     bool lessThan;
-    if (leftData.type() == QVariant::String &&
-        rightData.type() == QVariant::String) {
+    if (leftData.typeId() == QMetaType::QString &&
+        rightData.typeId() == QMetaType::QString) {
       lessThan = leftData.toString() < rightData.toString();
     }
-    else if (leftData.type() == QVariant::Double &&
-        rightData.type() == QVariant::Double) {
+    else if (leftData.typeId() == QMetaType::Double &&
+        rightData.typeId() == QMetaType::Double) {
       lessThan = (leftData.toDouble() < rightData.toDouble());
     }
-    else if (leftData.type() == QVariant::Double ||
-        rightData.type() == QVariant::Double) {
+    else if (leftData.typeId() == QMetaType::Double ||
+        rightData.typeId() == QMetaType::Double) {
       // We are comparing a BusyLeafItem to a double. BusyLeafItem's should
       // always be less than the double.
       lessThan = (leftData.toString() == busy);

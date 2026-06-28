@@ -1,0 +1,197 @@
+# See https://github.com/actions/runner-images?tab=readme-ov-file#available-images for Github's Available Images
+
+name: Github Actions - Build Dev Weekly Anaconda Release
+
+env:
+  ANACONDA_API_TOKEN: ${{ secrets.ANACONDA_TOKEN }} 
+  ENCRYPTION_KEY: ${{ secrets.KDU_ENC_KEY }}
+
+on:
+  schedule:
+    - cron: '0 5 * * 0'  # 10:00 PM MST Monday (UTC: Sunday 5:00 AM)
+  workflow_dispatch:     # Option to manually run pipeline in Actions
+  
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Mambaforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          auto-update-conda: false
+          use-mamba: true
+      - name: Build Release
+        run: |
+          export ISIS_VERSION=$(date +%Y.%m.%d)
+          echo $ISIS_VERSION
+          conda install python=3.12 conda-build anaconda-client --solver=classic -y
+          git fetch origin
+          git checkout dev
+          cd recipe
+          sed -i "s/{% set version = \"[^\"]*\" %}/{% set version = \"$ISIS_VERSION\" %}/" meta.yaml
+          sed -i "s/version: {{ version }}.0_RC[^ ]*/version: {{ version }}/" meta.yaml
+          sed -i "s/git_tag: {{ version }}/git_tag: 'dev'/" meta.yaml
+          conda build . -c usgs-astrogeology -c conda-forge --override-channels --user usgs-astrogeology --label dev
+
+  build-macos-15-intel:
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Mambaforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          auto-update-conda: true
+          use-mamba: true
+      - name: Build Release
+        run: |
+          export ISIS_VERSION=$(date +%Y.%m.%d)
+          echo $ISIS_VERSION
+          mamba install conda-build anaconda-client
+          git fetch origin
+          git checkout dev
+          cd recipe
+          sed -i '' "s/{% set version = \"[^\"]*\" %}/{% set version = \"$ISIS_VERSION\" %}/" meta.yaml
+          sed -i '' "s/version: {{ version }}.0_RC[^ ]*/version: {{ version }}/" meta.yaml
+          sed -i '' "s/git_tag: {{ version }}/git_tag: 'dev'/" meta.yaml
+          conda build . -c usgs-astrogeology -c conda-forge --override-channels --user usgs-astrogeology --label dev
+
+  build-macos15-arm64:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Mambaforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          auto-update-conda: true
+          use-mamba: true
+      - name: Build Release
+        run: |
+          export ISIS_VERSION=$(date +%Y.%m.%d)
+          echo $ISIS_VERSION
+          mamba install conda-build anaconda-client
+          git fetch origin
+          git checkout dev
+          cd recipe
+          sed -i '' "s/{% set version = \"[^\"]*\" %}/{% set version = \"$ISIS_VERSION\" %}/" meta.yaml
+          sed -i '' "s/version: {{ version }}.0_RC[^ ]*/version: {{ version }}/" meta.yaml
+          sed -i '' "s/git_tag: {{ version }}/git_tag: 'dev'/" meta.yaml
+          conda build . -c usgs-astrogeology -c conda-forge --override-channels --user usgs-astrogeology --label dev
+
+  test-ubuntu:
+    runs-on: ubuntu-latest
+    needs: build-ubuntu
+    steps:
+      - name: Set up Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          auto-update-conda: true
+          activate-environment: isis-test
+          use-mamba: true
+          
+      - name: Conda install and test spiceinit
+        run: |
+          export ISIS_VERSION=$(date +%Y.%m.%d)
+
+          source "${CONDA}/etc/profile.d/conda.sh"
+          conda activate isis-test
+
+          conda install -c conda-forge -c usgs-astrogeology usgs-astrogeology/label/dev::isis=${ISIS_VERSION} -y
+
+          export ISISROOT=$CONDA_PREFIX
+          conda list isis
+          spiceinit -h
+  
+  test-macos-15-intel:
+    runs-on: macos-15-intel
+    needs: build-macos-15-intel
+    steps:
+      - name: Set up Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          auto-update-conda: true
+          activate-environment: isis-test
+          use-mamba: true
+
+      - name: Conda install and test spiceinit
+        run: |
+          export ISIS_VERSION=$(date +%Y.%m.%d)
+          source "${CONDA}/etc/profile.d/conda.sh"
+          conda activate isis-test
+          conda install -c conda-forge -c usgs-astrogeology usgs-astrogeology/label/dev::isis=${ISIS_VERSION} -y
+          export ISISROOT=$CONDA_PREFIX
+          conda list isis
+          spiceinit -h
+  
+  test-macos15-arm64:
+    runs-on: macos-15
+    needs: build-macos15-arm64
+    steps:
+      - name: Set up Miniforge
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          auto-update-conda: true
+          activate-environment: isis-test
+          use-mamba: true
+
+      - name: Conda install and test spiceinit
+        run: |
+          export ISIS_VERSION=$(date +%Y.%m.%d)
+          source "${CONDA}/etc/profile.d/conda.sh"
+          conda activate isis-test
+          conda install -c conda-forge -c usgs-astrogeology usgs-astrogeology/label/dev::isis=${ISIS_VERSION} -y
+          export ISISROOT=$CONDA_PREFIX
+          conda list isis
+          spiceinit -h
+
+  docs:
+    name: Build and Upload ISIS Dev Docs
+    runs-on: ubuntu-latest
+    needs: [test-ubuntu, test-macos-15-intel, test-macos15-arm64]
+    if: |
+      always() && (
+        needs.test-ubuntu.result == 'success' ||
+        needs.test-macos-15-intel.result == 'success' ||
+        needs.test-macos15-arm64.result == 'success'
+      )
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Conda for doc build
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-variant: Miniforge3
+          auto-update-conda: true
+          environment-file: environment.yml
+          activate-environment: isis
+          use-mamba: true
+
+      - name: Build documentation
+        run: |
+          source "${CONDA}/etc/profile.d/conda.sh"
+          conda activate isis
+          mkdir build && cd build
+          export ISISROOT=$(pwd)
+          cmake -GNinja ../isis
+          ninja docs
+
+      - name: Set AWS credentials for upload
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-west-2
+      
+      - name: Upload to S3
+        run: |
+          cd /home/runner/work/ISIS3/ISIS3/build/docs && cd "$(find . -maxdepth 1 -type d ! -name .)"
+          echo "Uploading documentation to S3..."
+          aws s3 sync ./ s3://asc-public-docs/isis-site/dev/ --delete

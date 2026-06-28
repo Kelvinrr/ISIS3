@@ -510,12 +510,12 @@ namespace Isis {
     iTime newStartClock(sumStartTime() - startExposureDelay(*m_cube));
     iTime newStopClock(sumStopTime()   + stopExposureDelay(*m_cube));
 
-    bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+    bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
 
     // Compute start SCLK if present on labels
     if ( origStartClock.size() > 0 ) {
       NaifStatus::CheckErrors();
-      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), newStartClock.Et(), SpiceQL::spiceql_mission_map[(camera->instrumentId()).toStdString()], useWeb);
+      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), newStartClock.Et(), SpiceQL::getSpiceqlName(camera->instrumentId().toStdString()), useWeb);
 
       NaifStatus::CheckErrors();
 
@@ -530,7 +530,7 @@ namespace Isis {
     // Compute end SCLK if present on labels
     if ( origStopClock.size() > 0 ) {
       NaifStatus::CheckErrors();
-      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), newStopClock.Et(), SpiceQL::spiceql_mission_map[(camera->instrumentId()).toStdString()], useWeb);
+      auto [newSCLK, kernels] = SpiceQL::doubleEtToSclk(camera->naifSclkCode(), newStopClock.Et(), SpiceQL::getSpiceqlName(camera->instrumentId().toStdString()), useWeb);
       NaifStatus::CheckErrors();
 
       sumtStopClock.addValue(origStopClock[0], origStopClock.unit());

@@ -4,16 +4,16 @@ For more details about the LICENSE terms and the AUTHORS, you will
 find files of those names at the top level of this repository. **/
 
 /* SPDX-License-Identifier: CC0-1.0 */
-#include "IException.h"
+#include <iostream>
+
+#include <QFileInfo>
+#include <QRegularExpression>
+
 #include "IException.h"
 #include "FileName.h"
 #include "Message.h"
 #include "TextFile.h"
 #include "IString.h"
-
-#include <iostream>
-
-#include <QFileInfo>
 
 using namespace std;
 namespace Isis {
@@ -488,7 +488,7 @@ namespace Isis {
       if(p_commentString.length()) {
         int locComment = line.indexOf(p_commentString);
         if(locComment != -1) {
-          int afterWhiteSpace = line.indexOf(QRegExp("[^\\s]"));
+          int afterWhiteSpace = line.indexOf(QRegularExpression("[^\\s]"));
           if((locComment == 0) || (locComment == afterWhiteSpace)) {
             return p_GetLine(line, chkComment);
           }

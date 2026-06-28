@@ -77,12 +77,12 @@ namespace Isis {
         NaifStatus::CheckErrors();
         sunDist = 1.0;
         
-        bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+        bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
 
         //  Determine if the target is a valid NAIF target
         try{
           SpiceQL::translateNameToCode(target.toLatin1().data(), "mdis", useWeb);
-        }catch(std::invalid_argument){
+        } catch(const std::invalid_argument &){
           return false;
         }
 
@@ -122,10 +122,10 @@ namespace Isis {
       CSVReader::CSVAxis row = csv.getRow(i);
       if (toInteger(row[0]) == filter) {
         if ((row.dim1() - 1) < nvalues) {
-          QString mess = "Number values (" + QString(row.dim1() - 1) +
+          QString mess = "Number values (" + QString::number(row.dim1() - 1) +
                              ") in file " + fname +
                              " less than number requested (" +
-                             QString(nvalues) + ")!";
+                             QString::number(nvalues) + ")!";
           throw IException(IException::User, mess, _FILEINFO_);
         }
 
@@ -155,9 +155,9 @@ namespace Isis {
     CSVReader csv(csvfile.expanded(), header, skip);
     CSVReader::CSVAxis row = csv.getRow(0);
     if (row.dim1() < nvalues) {
-      QString mess = "Number values (" + QString(row.dim1()) +
+      QString mess = "Number values (" + QString::number(row.dim1()) +
                          ") in file " + fname + " less than number requested (" +
-                         QString(nvalues) + ")!";
+                         QString::number(nvalues) + ")!";
       throw IException(IException::User, mess, _FILEINFO_);
 
     }
@@ -357,9 +357,9 @@ namespace Isis {
     const int nvalues = 13;     // Expected columns in table
     CSVReader csv(csvfile.expanded(), header, skip);
     if (csv.columns() < nvalues) {  // All rows should have same # columns
-      QString mess = "Number values (" + QString(csv.columns()) +
+      QString mess = "Number values (" + QString::number(csv.columns()) +
                          ") in file " + ename + " less than number requested (" +
-                         QString(nvalues) + ")!";
+                         QString::number(nvalues) + ")!";
       throw IException(IException::User, mess, _FILEINFO_);
     }
 
@@ -375,7 +375,7 @@ namespace Isis {
         // Ensure NAIF kernels are loaded for NAIF time computations
         NaifStatus::CheckErrors();
 
-        bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+        bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
 
         //  Convert s/c clock start time to et
         tie(obsStartTime, kernels) = SpiceQL::strSclkToEt(-236, scStartTime.toLatin1().data(), "mdis", useWeb);

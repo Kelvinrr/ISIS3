@@ -142,7 +142,7 @@ namespace Isis {
       
       NaifStatus::CheckErrors();
 
-      bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+      bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
 
       double sunpos[6];
       std::vector<double> etStartVec = {etStart};
@@ -195,7 +195,8 @@ namespace Isis {
     p.EndProcess();
 
     // Now go fix errors around the wago changes
-    gbl::FixWagoLines(ui.GetCubeName("TO"));
+    FileName outCube(ui.GetCubeName("TO"));
+    gbl::FixWagoLines(outCube.expanded());
 
     // Cleanup
     gbl::pixelGain.clear();

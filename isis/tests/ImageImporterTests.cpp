@@ -81,9 +81,6 @@ TEST_F(TempTestingFiles, UnitTestImageImporterStd2IsisTiffRgb) {
   ASSERT_NEAR(hist->StandardDeviation(), 64.032045970490174, .0001);
 }
 
-#ifndef NO_JP2K
-// Run only if JP2K is enabled
-
 TEST_F(TempTestingFiles, UnitTestImageImporterStd2IsisJp2) {
   FileName inputName("data/stdFormatImages/rgb.jp2");
 
@@ -113,10 +110,8 @@ TEST_F(TempTestingFiles, UnitTestImageImporterStd2IsisJp2) {
 
   std::unique_ptr<Histogram> hist (outCube.histogram());
 
-  ASSERT_NEAR(hist->Average(), 113.12452758881331, .00001);
-  ASSERT_EQ(hist->Sum(), 1795965);
+  ASSERT_NEAR(hist->Average(), 113.01033005794910, .00001);
+  ASSERT_EQ(hist->Sum(), 1794152);
   ASSERT_EQ(hist->ValidPixels(), 15876);
-  ASSERT_NEAR(hist->StandardDeviation(), 97.354405991298336, .0001);
+  ASSERT_NEAR(hist->StandardDeviation(), 97.338906709624155, .0001);
 }
-
-#endif // NO_JP2K

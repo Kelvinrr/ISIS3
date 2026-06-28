@@ -20,6 +20,8 @@ find files of those names at the top level of this repository. **/
 #include "NaifStatus.h"
 #include "Preference.h"
 
+#include <QStringRef>
+
 #include "ctxcal.h"
 
 using namespace std;
@@ -47,7 +49,7 @@ namespace Isis {
       // We will be processing by line
       ProcessByLine p;
 
-      Isis::Pvl lab = *(icube->label());
+      Isis::Pvl lab(icube->fileName());
       Isis::PvlGroup &inst =
           lab.findGroup("Instrument", Pvl::Traverse);
 
@@ -66,6 +68,11 @@ namespace Isis {
       else {
           FileName flat;
           if (ui.GetBoolean("MONTHLYFLAT")) {
+              if (Preference::Preferences().getShowDeprecatedPref()) {
+              QString msg = "MONTHLYFLAT parameter will be deprecated in a future ISIS release. "
+                            "Use default flat file selection instead.";
+              std::cerr << msg << std::endl;
+            }
               FileName outputFileName(icube->fileName());
               QString outputFileBase = outputFileName.baseName();
 
@@ -171,7 +178,7 @@ namespace Isis {
           NaifStatus::CheckErrors();
           double sunpos[6];
 
-          bool useWeb = QString(Preference::Preferences().findGroup("WebSpice")["UseWebSpice"]).toUpper() == "TRUE";
+          bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
 
           std::vector<double> etStartVec = {etStart};
           auto [sunLt, kernels] = SpiceQL::getTargetStates(etStartVec, "sun", "mars", "iau_mars", "LT+S", "mro", {"reconstructed"}, {"reconstructed"}, useWeb);

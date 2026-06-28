@@ -1,0 +1,13 @@
+import setuptools
+
+if __name__ == '__main__':
+    setuptools.setup(
+        name='isiscore',
+        version='10.0.0',
+        packages=['isiscore'],
+        package_data={'':['isiscore.so']},
+        zip_safe=False,  # Some OSes can not dynamically load an so from an egg (zipfile)
+        license='UnLicense',
+        author='astamile/acpaquette',
+        author_email='astamile@usgs.gov'
+)

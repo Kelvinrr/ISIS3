@@ -12,7 +12,7 @@ find files of those names at the top level of this repository. **/
 #include <QThreadPool>
 
 #include "Constants.h"
-#include "Endian.h"
+#include "IEndian.h"
 #include "ImageIoHandler.h"
 #include "PixelType.h"
 
@@ -21,7 +21,6 @@ class QMutex;
 class QElapsedTimer;
 template <typename A> class QList;
 template <typename A, typename B> class QMap;
-template <typename A, typename B> struct QPair;
 
 namespace Isis {
   class Buffer;

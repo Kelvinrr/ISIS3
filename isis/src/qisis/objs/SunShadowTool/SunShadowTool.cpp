@@ -126,7 +126,7 @@ namespace Isis {
         "click on the first point and releasing the mouse at the second point."
         "\n<p><b>Shortcut:</b>  CTRL+M</p>";
     showTableButton->setWhatsThis(text);
-    showTableButton->setShortcut(Qt::CTRL + Qt::Key_M);
+    showTableButton->setShortcut(Qt::CTRL | Qt::Key_M);
     connect(showTableButton, SIGNAL(clicked()), m_tableWin, SLOT(showTable()));
     connect(showTableButton, SIGNAL(clicked()), m_tableWin, SLOT(syncColumns()));
     connect(showTableButton, SIGNAL(clicked()), m_tableWin, SLOT(raise()));
@@ -153,7 +153,7 @@ namespace Isis {
     m_drawInSunDirection->setChecked(true);
 
     QHBoxLayout *layout = new QHBoxLayout(hbox);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_drawInSunDirection);
     layout->addWidget(m_shadowHeightLineEdit);
     layout->addWidget(m_unitsComboBox);

@@ -77,6 +77,12 @@ namespace Isis {
 
     raw += "  <label>\n";
     stringstream str;
+    // Force BandSequential format as a hack to avoid issues 
+    // opening/operating on GTiff formated data
+    PvlObject& core = cubeLabel.findObject("IsisCube").findObject("Core");
+    if (core.findKeyword("Format")[0] == "GTiff") {
+      core.findKeyword("Format") = "BandSequential";
+    }
     str << cubeLabel;
     raw += QString(QByteArray(str.str().c_str()).toHex().constData()) + "\n";
 
@@ -435,12 +441,8 @@ namespace Isis {
     }
 
     QDomDocument document;
-    QString errorMsg;
-    int errorLine, errorCol;
-
-    if(!p_response->isEmpty() &&
-        document.setContent(QString(p_response->toLatin1()),
-                            &errorMsg, &errorLine, &errorCol)) {
+    QDomDocument::ParseResult result = document.setContent(QString(p_response->toLatin1()));
+    if(!p_response->isEmpty() && bool(result)) {
       return document.firstChild().toElement();
     }
     else {

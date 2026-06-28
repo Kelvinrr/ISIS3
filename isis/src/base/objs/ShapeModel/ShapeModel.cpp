@@ -27,6 +27,7 @@ find files of those names at the top level of this repository. **/
 #include "NaifStatus.h"
 #include "Spice.h"
 #include "Target.h"
+#include "Preference.h"
 
 using namespace std;
 
@@ -182,7 +183,7 @@ namespace Isis {
     // Get the body radii and compute the true normal of the ellipsoid
     std::vector<double> norm(3);
     // need a case for target == NULL
-    QVector<Distance> radii = QVector<Distance>::fromStdVector(targetRadii());
+    std::vector<Distance> radii = targetRadii();
     NaifStatus::CheckErrors();
     surfnm_c(radii[0].kilometers(), radii[1].kilometers(), radii[2].kilometers(),
              pB, &norm[0]);

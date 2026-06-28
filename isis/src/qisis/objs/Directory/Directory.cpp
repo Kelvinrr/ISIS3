@@ -17,7 +17,7 @@ find files of those names at the top level of this repository. **/
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
-#include <QRegExp>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSizePolicy>
 #include <QSplitter>
@@ -323,7 +323,7 @@ namespace Isis {
         QString actionText(action->text());
         if (actionText == "&Recent Projects") {
           // Grab the pointer to the actual ""&Recent Projects" menu in IPCE
-          recentProjectsMenu = qobject_cast<QMenu*>(action->parentWidget());
+          recentProjectsMenu = qobject_cast<QMenu*>(action->parent());
           break;
         }
       }
@@ -687,7 +687,7 @@ namespace Isis {
     }
     else {
       //  If no objectName, create unique identifier
-      QString newObjectName = QUuid::createUuid().toString().remove(QRegExp("[{}]"));
+      QString newObjectName = QUuid::createUuid().toString().remove(QRegularExpression("[{}]"));
       result->setObjectName(newObjectName);
     }
 
@@ -718,7 +718,7 @@ namespace Isis {
     }
     else {
       //  If no objectName, create unique identifier
-      QString newObjectName = QUuid::createUuid().toString().remove(QRegExp("[{}]"));
+      QString newObjectName = QUuid::createUuid().toString().remove(QRegularExpression("[{}]"));
       result->setObjectName(newObjectName);
     }
 
@@ -765,7 +765,7 @@ namespace Isis {
     }
     else {
       //  If no objectName, create unique identifier
-      QString newObjectName = QUuid::createUuid().toString().remove(QRegExp("[{}]"));
+      QString newObjectName = QUuid::createUuid().toString().remove(QRegularExpression("[{}]"));
       result->setObjectName(newObjectName);
     }
 
@@ -1036,7 +1036,7 @@ namespace Isis {
     }
     else {
       //  If no objectName, create unique identifier
-      QString newObjectName = QUuid::createUuid().toString().remove(QRegExp("[{}]"));
+      QString newObjectName = QUuid::createUuid().toString().remove(QRegularExpression("[{}]"));
       result->setObjectName(newObjectName);
     }
 

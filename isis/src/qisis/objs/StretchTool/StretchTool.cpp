@@ -69,12 +69,12 @@ namespace Isis {
     hiddenButton->setDefault(true);
 
     m_stretchGlobal = new QAction(parent);
-    m_stretchGlobal->setShortcut(Qt::CTRL + Qt::Key_G);
+    m_stretchGlobal->setShortcut(Qt::CTRL | Qt::Key_G);
     m_stretchGlobal->setText("Global Stretch");
     connect(m_stretchGlobal, SIGNAL(triggered()), this, SLOT(stretchGlobal()));
 
     m_stretchRegional = new QAction(parent);
-    m_stretchRegional->setShortcut(Qt::CTRL + Qt::Key_R);
+    m_stretchRegional->setShortcut(Qt::CTRL | Qt::Key_R);
     m_stretchRegional->setText("Regional Stretch");
     connect(m_stretchRegional, SIGNAL(triggered()), this, SLOT(stretchRegional()));
 
@@ -327,7 +327,7 @@ namespace Isis {
     connect(loadStretchButton, SIGNAL(clicked(bool)), this, SLOT(loadStretchFromCube()));
 
     QHBoxLayout *layout = new QHBoxLayout(hbox);
-    layout->setMargin(0);
+    layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(m_copyButton);
     layout->addWidget(m_globalButton);
     layout->addWidget(m_stretchRegionalButton);
@@ -441,7 +441,7 @@ namespace Isis {
     // Create a list of existing Stretch names
     if (cvp->isGray()) {
       PvlObject::PvlObjectIterator objIter;
-      for (objIter=lab->beginObject(); objIter<lab->endObject(); objIter++) {
+      for (objIter = lab->beginObject(); objIter != lab->endObject(); objIter++) {
         if (objIter->name() == "Stretch") {
           PvlKeyword tempKeyword = objIter->findKeyword("Name");
           int bandNumber = int(objIter->findKeyword("BandNumber"));
@@ -459,7 +459,7 @@ namespace Isis {
 
       QMap<QString, QList<int>> tempNameMap;
       PvlObject::PvlObjectIterator objIter;
-      for (objIter=lab->beginObject(); objIter<lab->endObject(); objIter++) {
+      for (objIter = lab->beginObject(); objIter != lab->endObject(); objIter++) {
         if (objIter->name() == "Stretch") {
           PvlKeyword tempKeyword = objIter->findKeyword("Name");
           int bandNumber = int(objIter->findKeyword("BandNumber"));
@@ -559,7 +559,7 @@ namespace Isis {
     // Create a list of existing Stretch names
     QStringList namelist;
     PvlObject::PvlObjectIterator objIter;
-    for (objIter=lab->beginObject(); objIter<lab->endObject(); objIter++) {
+    for (objIter = lab->beginObject(); objIter != lab->endObject(); objIter++) {
       if (objIter->name() == "Stretch") {
         PvlKeyword tempKeyword = objIter->findKeyword("Name");
         int bandNumber = int(objIter->findKeyword("BandNumber"));
@@ -625,7 +625,7 @@ namespace Isis {
     // Create a list of existing Stretch names
     QStringList namelist;
     PvlObject::PvlObjectIterator objIter;
-    for (objIter=lab->beginObject(); objIter<lab->endObject(); objIter++) {
+    for (objIter = lab->beginObject(); objIter != lab->endObject(); objIter++) {
       if (objIter->name() == "Stretch") {
         PvlKeyword tempKeyword = objIter->findKeyword("Name");
         QString tempName = tempKeyword[0];

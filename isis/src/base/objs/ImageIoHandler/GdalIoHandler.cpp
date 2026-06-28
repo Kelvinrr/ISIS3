@@ -47,8 +47,11 @@ namespace Isis {
 
     // Check if we need to create the mask band
     if ((m_geodataSet->GetAccess() == GA_Update) && (m_driverName != "ISIS3")) {
-      m_geodataSet->CreateMaskBand(8);
-      m_geodataSet->GetRasterBand(1)->GetMaskBand()->Fill(255);
+      for (int i = 1; i <= m_bands; i++) {
+        GDALRasterBand *band = m_geodataSet->GetRasterBand(i);
+        band->CreateMaskBand(GMF_ALPHA);
+        band->GetMaskBand()->Fill(255);
+      }
     }
 
     GDALRasterBand *band = m_geodataSet->GetRasterBand(1);
@@ -116,16 +119,12 @@ namespace Isis {
 
       if (sampleSize > 0 && lineSize > 0) {
         if (outOfBounds) {
-          Brick boundedBrick(sampleSize, lineSize, bufferToFill.BandDimension(), GdalPixelToIsis(m_pixelType), false, bufferToFill.scale());
+          Brick boundedBrick(sampleSize, lineSize, bufferToFill.BandDimension(), GdalPixelToIsis(m_pixelType), false);
           boundedBrick.SetBasePosition(sampleStart + 1, lineStart + 1, bufferToFill.Band());
-          int bufferSize = boundedBrick.SampleDimensionScaled() * boundedBrick.LineDimensionScaled();
-          int currentBandIdx = bufferSize * (vband - boundedBrick.Band());
-          char *buffersRawBuf = &(((char *)boundedBrick.RawBuffer())[(int)(currentBandIdx * SizeOf(boundedBrick.PixelType()))]);
-          double *buffersDoubleBuf = &(boundedBrick.DoubleBuffer()[currentBandIdx]);
           CPLErr err = poBand->RasterIO(GF_Read, sampleStart, lineStart,
                                         sampleSize, lineSize,
-                                        buffersRawBuf,
-                                        boundedBrick.SampleDimensionScaled(), boundedBrick.LineDimensionScaled(),
+                                        boundedBrick.RawBuffer(),
+                                        sampleSize, lineSize,
                                         m_pixelType,
                                         0, 0);
 
@@ -135,21 +134,18 @@ namespace Isis {
           }
 
           // Handle pixel type conversion
-          for (int bufferIdx = 0; bufferIdx < bufferSize; bufferIdx++) {
+          char *buffersRawBuf = (char *)boundedBrick.RawBuffer();
+          double *buffersDoubleBuf = boundedBrick.DoubleBuffer();
+          for (int bufferIdx = 0; bufferIdx < boundedBrick.size(); bufferIdx++) {
             readPixelType(buffersDoubleBuf, buffersRawBuf, bufferIdx);
           }
           bufferToFill.CopyOverlapFrom(boundedBrick);
         }
         else {
-          int bufferSize = bufferToFill.SampleDimensionScaled() * bufferToFill.LineDimensionScaled();;
-          int currentBandIdx = bufferSize * (vband - bufferToFill.Band());
-          // silence warnings
-          char *buffersRawBuf = &(((char *)bufferToFill.RawBuffer())[(int)(currentBandIdx * SizeOf(bufferToFill.PixelType()))]);
-          double *buffersDoubleBuf = &(bufferToFill.DoubleBuffer()[currentBandIdx]);
           CPLErr err = poBand->RasterIO(GF_Read, sampleStart, lineStart,
                                         sampleSize, lineSize,
-                                        buffersRawBuf,
-                                        bufferToFill.SampleDimensionScaled(), bufferToFill.LineDimensionScaled(),
+                                        bufferToFill.RawBuffer(),
+                                        sampleSize, lineSize,
                                         m_pixelType,
                                         0, 0);
           if (err >= CE_Failure) {
@@ -158,7 +154,9 @@ namespace Isis {
           }
 
           // Handle pixel type conversion
-          for (int bufferIdx = 0; bufferIdx < bufferSize; bufferIdx++) {
+          char *buffersRawBuf = (char *)bufferToFill.RawBuffer();
+          double *buffersDoubleBuf = bufferToFill.DoubleBuffer();
+          for (int bufferIdx = 0; bufferIdx < bufferToFill.size(); bufferIdx++) {
             readPixelType(buffersDoubleBuf, buffersRawBuf, bufferIdx);
           }
         }
@@ -423,8 +421,8 @@ namespace Isis {
     }
 
     else if(m_pixelType == GDT_Int8) {
-      char raw = ((char *)rawBuff)[idx];
-      if (raw == (char) m_gdalNoDataValue) {
+      signed char raw = ((signed char *)rawBuff)[idx];
+      if (raw == (signed char) m_gdalNoDataValue) {
         raw = NULLS1;
       }
 
@@ -438,7 +436,7 @@ namespace Isis {
         bufferVal = (double) raw * m_scale + m_offset;
       }
 
-      ((char *)rawBuff)[idx] = raw;
+      ((signed char *)rawBuff)[idx] = raw;
     }
     
     else if(m_pixelType == GDT_Byte) {
@@ -753,7 +751,7 @@ namespace Isis {
     }
 
     else if(m_pixelType == GDT_Int8) {
-     char raw;
+     signed char raw;
 
       if(bufferVal >= VALID_MIN8) {
         double filePixelValueDbl = (bufferVal - m_offset) /
@@ -777,7 +775,7 @@ namespace Isis {
             isSpecial = true;
           }
           else {
-            raw = (char)(filePixelValue);
+            raw = (signed char)(filePixelValue);
           }
         }
       }
@@ -807,7 +805,7 @@ namespace Isis {
           isSpecial = true;
         }
       }
-      ((char *)rawBuff)[idx] = raw;
+      ((signed char *)rawBuff)[idx] = raw;
     }
 
     else if(m_pixelType == GDT_Byte) {

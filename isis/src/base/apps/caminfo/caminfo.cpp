@@ -22,6 +22,7 @@
 
 #include <QList>
 #include <QPair>
+#include <QRegularExpression>
 
 #include "caminfo.h"
 
@@ -187,10 +188,10 @@ namespace Isis{
       }
 
       if (not appending) {
-        keys.remove(QRegExp(delim + "$")); // Get rid of the extra delim char (",")
+        keys.remove(QRegularExpression(delim + "$")); // Get rid of the extra delim char (",")
         outFile << keys << endl;
       }
-      values.remove(QRegExp(delim + "$")); // Get rid of the extra delim char (",")
+      values.remove(QRegularExpression(delim + "$")); // Get rid of the extra delim char (",")
       outFile << values << endl;
       outFile.close();
     }
@@ -229,6 +230,9 @@ namespace Isis{
           CubeAttributeInput inAtt = ui.GetInputAttribute("FROM");
           incube->close();
           QString parameters = "FROM=" + cubeName;
+          if (ui.GetParamPreference() != "") { 
+            parameters += " -PREFERENCE=" + ui.GetParamPreference();
+          }
           ProgramLauncher::RunIsisProgram("spiceinit", parameters);
           if (inAtt.bands().size() != 0) {
               incube->setVirtualBands(inAtt.bands());
@@ -440,7 +444,7 @@ namespace Isis{
             PvlObject::PvlObjectIterator objIter;
             bool found = false;
             PvlGroup fpgrp;
-            for (objIter=pvl.endObject()-1; objIter>=pvl.beginObject(); objIter--) {
+            for (objIter = pvl.endObject()-1; objIter != pvl.beginObject(); objIter--) {
               if (objIter->name().toUpper() == "FOOTPRINTINIT") {
                 found = true;
                 fpgrp = objIter->findGroup("UserParameters");

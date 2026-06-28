@@ -25,7 +25,7 @@ find files of those names at the top level of this repository. **/
 #include "CubeCachingAlgorithm.h"
 #include "Displacement.h"
 #include "Distance.h"
-#include "Endian.h"
+#include "IEndian.h"
 #include "EndianSwapper.h"
 #include "IException.h"
 #include "IString.h"
@@ -295,9 +295,9 @@ namespace Isis {
 
     QPair< QList<RawCubeChunk *>, QList<int> > chunkInfo;
       chunkInfo = findCubeChunks(
-          bufferToFill.Sample(), bufferToFill.SampleDimension(),
-          bufferToFill.Line(), bufferToFill.LineDimension(),
-          bufferToFill.Band(), bufferToFill.BandDimension());
+          bufferToFill.Sample(), bufferSampleCount,
+          bufferToFill.Line(), bufferLineCount,
+          bufferToFill.Band(), bufferBandCount);
       cubeChunks = chunkInfo.first;
       chunkBands = chunkInfo.second;
     }
@@ -880,10 +880,10 @@ namespace Isis {
     startX = max(cube1.getStartSample(), cube2.Sample());
     startY = max(cube1.getStartLine(), cube2.Line());
     startZ = max(cube1.getStartBand(), startPhysicalBand);
-    endX = min(cube1.getStartSample() + cube1.sampleCount(),
-               cube2.Sample() + cube2.SampleDimension());
-    endY = min(cube1.getStartLine() + cube1.lineCount(),
-               cube2.Line() + cube2.LineDimension());
+    endX = min(cube1.getStartSample() + cube1.sampleCount() - 1,
+               cube2.Sample() + cube2.SampleDimension() - 1);
+    endY = min(cube1.getStartLine() + cube1.lineCount() - 1,
+               cube2.Line() + cube2.LineDimension() - 1);
     endZ = min(cube1.getStartBand() + cube1.bandCount() - 1,
                endPhysicalBand);
   }
@@ -1339,11 +1339,6 @@ namespace Isis {
     const char *chunkBuf = chunk.getRawData().data();
     char *buffersRawBuf = (char *)output.RawBuffer();
 
-
-    // Scale the sampleand line increment, only necessary in read for Q apps
-    int lineIncrement = (double)output.LineDimension() / (double)output.LineDimensionScaled();
-    int sampleIncrement = (double)output.SampleDimension() / (double)output.SampleDimensionScaled();
-
     for(int z = startZ; z <= endZ; z++) {
       const int &bandIntoChunk = z - chunkStartBand;
       int virtualBand = z;
@@ -1353,20 +1348,16 @@ namespace Isis {
       if(virtualBand != 0 && virtualBand >= bufferBand &&
          virtualBand <= bufferBand + bufferBands - 1) {
 
-        for(int y = startY; y < endY; y = y + lineIncrement) {
+        for(int y = startY; y <= endY; y++) {
           const int &lineIntoChunk = y - chunkStartLine;
+          int bufferIndex = output.Index(startX, y, virtualBand);
 
-          for(int x = startX; x < endX; x = x + sampleIncrement) {
+          for(int x = startX; x <= endX; x++) {
             const int &sampleIntoChunk = x - chunkStartSample;
-            int bufferIndex = output.Index(x, y, virtualBand);
-            // Avoid rolling back onto your buffer
-            if (bufferIndex >= output.size()) {
-              bufferIndex = output.size() - 1;
-            }
 
             const int &chunkIndex = sampleIntoChunk +
                 (chunkLineSize * lineIntoChunk) +
-                (chunkBandSize * bandIntoChunk);
+                (chunkBandSize * bandIntoChunk);            
 
             double &bufferVal = buffersDoubleBuf[bufferIndex];
 
@@ -1559,11 +1550,11 @@ namespace Isis {
       if(virtualBand != 0 && virtualBand >= bufferBand &&
          virtualBand <= bufferBand + bufferBands - 1) {
 
-        for(int y = startY; y < endY; y++) {
+        for(int y = startY; y <= endY; y++) {
           const int &lineIntoChunk = y - outputStartLine;
           int bufferIndex = buffer.Index(startX, y, virtualBand);
 
-          for(int x = startX; x < endX; x++) {
+          for(int x = startX; x <= endX; x++) {
             const int &sampleIntoChunk = x - outputStartSample;
 
             const int &chunkIndex = sampleIntoChunk +
