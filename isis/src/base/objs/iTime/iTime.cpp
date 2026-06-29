@@ -411,7 +411,7 @@ namespace Isis {
   //! Uses the Naif routines to load the most current leap second kernel.
   void iTime::LoadLeapSecondKernel() {
     // dont furnish and use the built in SpiceQL implementation.
-    if (getenv("ISISDATA") == NULL && QString(getenv("ISISDATA")) == "") {
+    if (getenv("ISISDATA") == NULL || QString(getenv("ISISDATA")) == "") {
       return;
     }
   
