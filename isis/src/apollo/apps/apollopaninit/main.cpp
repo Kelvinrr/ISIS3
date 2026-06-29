@@ -251,7 +251,7 @@ void IsisMain() {
     frameName = output["frameName"].get<std::string>();
   } catch(std::invalid_argument) {
     std::string naifTarget = "IAU_MOON";
-    auto [frameCode, kernels] = SpiceQL::translateNameToCode(naifTarget, mission.toLower().toStdString(), useWeb, true);
+    frameCode = SpiceQL::translateNameToCode(naifTarget, mission.toLower().toStdString(), useWeb, true).first;
     if(frameCode == 0) {
       QString msg = "Can not find NAIF code for [" + QString::fromStdString(naifTarget) + "]";
       throw IException(IException::Io, msg, _FILEINFO_);
