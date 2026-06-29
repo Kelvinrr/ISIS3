@@ -76,10 +76,9 @@ requirements:
    - jama
    - kalasiris
    - krb5
-   - libgdal >=3.12,<4
-   - libgdal-arrow-parquet >=3.12,<4
    - libboost >=1.88.0,<1.89
    - libgdal >=3.12.2,<4
+   - libgdal-arrow-parquet >=3.12,<4
    - libopencv >=4.12,<5
    - libpng >=1.6.34,<1.7
    - libprotobuf >=6,<7
