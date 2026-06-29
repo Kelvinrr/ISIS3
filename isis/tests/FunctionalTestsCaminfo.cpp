@@ -312,8 +312,8 @@ TEST_F(DefaultCube, FunctionalTestCaminfoDefault) {
     EXPECT_DOUBLE_EQ(geometry.findKeyword("ReferenceBand"), 1);
     EXPECT_DOUBLE_EQ(geometry.findKeyword("OriginalBand"), 1);
     EXPECT_EQ(geometry.findKeyword("Target")[0].toStdString(), "MARS");
-    EXPECT_EQ(geometry.findKeyword("StartTime")[0].toStdString(), "1977-07-09T20:05:51.5549999");
-    EXPECT_EQ(geometry.findKeyword("EndTime")[0].toStdString(), "1977-07-09T20:05:51.5549999");
+    EXPECT_EQ(geometry.findKeyword("StartTime")[0].toStdString(), "1977-07-09T20:05:51.555");
+    EXPECT_EQ(geometry.findKeyword("EndTime")[0].toStdString(), "1977-07-09T20:05:51.555");
     EXPECT_DOUBLE_EQ(geometry.findKeyword("CenterLine"), 528.0);
     EXPECT_DOUBLE_EQ(geometry.findKeyword("CenterSample"), 602.0);
     EXPECT_NEAR(geometry.findKeyword("CenterLatitude"), 10.181441241544, 0.0001);

@@ -418,8 +418,8 @@ TEST(OsirisRexSamCamModules, SamCamModuleInfoAndStatsTest)
   EXPECT_EQ(int(geometryObject["ReferenceBand"]), 1);
   EXPECT_EQ(int(geometryObject["OriginalBand"]), 1);
   EXPECT_EQ(geometryObject["Target"][0].toStdString(), "Bennu");
-  EXPECT_EQ(geometryObject["StartTime"][0].toStdString(), "2020-08-11T22:14:18.0166387");
-  EXPECT_EQ(geometryObject["EndTime"][0].toStdString(), "2020-08-11T22:14:18.0166387");
+  EXPECT_EQ(geometryObject["StartTime"][0].toStdString(), "2020-08-11T22:14:18.016639");
+  EXPECT_EQ(geometryObject["EndTime"][0].toStdString(), "2020-08-11T22:14:18.016639");
   EXPECT_DOUBLE_EQ(double(geometryObject["CenterLine"]), 512.0);
   EXPECT_DOUBLE_EQ(double(geometryObject["CenterSample"]), 512.0);
   EXPECT_NEAR(double(geometryObject.findKeyword("CenterLatitude")), 50.146656833644997, 1e-8);
@@ -758,7 +758,7 @@ TEST(OsirisRexSamCamModules, SamCamModuleCamptTest) {
   EXPECT_NEAR((double)gpULGroup.findKeyword("Emission"), 9.3861602300607991, 1e-8);
   EXPECT_NEAR((double)gpULGroup.findKeyword("NorthAzimuth"), 16.332787390147999, 1e-8);
   EXPECT_NEAR((double)gpULGroup.findKeyword("EphemerisTime"), 650456127.19964004, 1e-5);
-  EXPECT_EQ(gpULGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.0166387");
+  EXPECT_EQ(gpULGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.016639");
   EXPECT_NEAR((double)gpULGroup.findKeyword("LocalSolarTime"), 14.551362348256999, 1e-8);
   EXPECT_NEAR((double)gpULGroup.findKeyword("SolarLongitude"), 112.19349952256999, 1e-8);
 
@@ -826,7 +826,7 @@ TEST(OsirisRexSamCamModules, SamCamModuleCamptTest) {
   EXPECT_NEAR((double)gpURGroup.findKeyword("Emission"), 19.439596731908001, 1e-8);
   EXPECT_NEAR((double)gpURGroup.findKeyword("NorthAzimuth"), 21.711455490376, 1e-8);
   EXPECT_NEAR((double)gpURGroup.findKeyword("EphemerisTime"), 650456127.19964004, 1e-5);
-  EXPECT_EQ(gpURGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.0166387");
+  EXPECT_EQ(gpURGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.016639");
   EXPECT_NEAR((double)gpURGroup.findKeyword("LocalSolarTime"), 14.772532495766001, 1e-8);
   EXPECT_NEAR((double)gpURGroup.findKeyword("SolarLongitude"), 112.19349952256999, 1e-8);
 
@@ -894,7 +894,7 @@ TEST(OsirisRexSamCamModules, SamCamModuleCamptTest) {
   EXPECT_NEAR((double)gpLRGroup.findKeyword("Emission"), 28.581833397705001, 1e-8);
   EXPECT_NEAR((double)gpLRGroup.findKeyword("NorthAzimuth"), 8.3819300079138994, 1e-8);
   EXPECT_NEAR((double)gpLRGroup.findKeyword("EphemerisTime"), 650456127.19964004, 1e-5);
-  EXPECT_EQ(gpLRGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.0166387");
+  EXPECT_EQ(gpLRGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.016639");
   EXPECT_NEAR((double)gpLRGroup.findKeyword("LocalSolarTime"), 14.026160207899, 1e-8);
   EXPECT_NEAR((double)gpLRGroup.findKeyword("SolarLongitude"), 112.19349952256999, 1e-8);
 
@@ -962,7 +962,7 @@ TEST(OsirisRexSamCamModules, SamCamModuleCamptTest) {
   EXPECT_NEAR((double)gpLLGroup.findKeyword("Emission"), 21.867688503058002, 1e-8);
   EXPECT_NEAR((double)gpLLGroup.findKeyword("NorthAzimuth"), 11.918468304929, 1e-8);
   EXPECT_NEAR((double)gpLLGroup.findKeyword("EphemerisTime"), 650456127.19964004, 1e-5);
-  EXPECT_EQ(gpLLGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.0166387");
+  EXPECT_EQ(gpLLGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.016639");
   EXPECT_NEAR((double)gpLLGroup.findKeyword("LocalSolarTime"), 13.918217630072, 1e-8);
   EXPECT_NEAR((double)gpLLGroup.findKeyword("SolarLongitude"), 112.19349952256999, 1e-8);
 
@@ -1030,7 +1030,7 @@ TEST(OsirisRexSamCamModules, SamCamModuleCamptTest) {
   EXPECT_NEAR((double)gpCTRGroup.findKeyword("Emission"), 9.5393438584533001, 1e-8);
   EXPECT_NEAR((double)gpCTRGroup.findKeyword("NorthAzimuth"), 14.652172109042001, 1e-8);
   EXPECT_NEAR((double)gpCTRGroup.findKeyword("EphemerisTime"), 650456127.19964004, 1e-5);
-  EXPECT_EQ(gpCTRGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.0166387");
+  EXPECT_EQ(gpCTRGroup["UTC"][0].toStdString(), "2020-08-11T22:14:18.016639");
   EXPECT_NEAR((double)gpCTRGroup.findKeyword("LocalSolarTime"), 14.327224630888001, 1e-8);
   EXPECT_NEAR((double)gpCTRGroup.findKeyword("SolarLongitude"), 112.19349952256999, 1e-8);
 

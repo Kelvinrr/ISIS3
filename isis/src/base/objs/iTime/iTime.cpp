@@ -353,8 +353,13 @@ namespace Isis {
    * @return string The internalized time, in UTC format
    */
   QString iTime::UTC(int precision) const {
-    string utc = SpiceQL::etToUtc(p_et, "ISOC", precision, false, false).first;
-    return utc.c_str();
+    QString utc = SpiceQL::etToUtc(p_et, "ISOC", precision, false, false).first.c_str();
+
+    // Trim trailing zeros from the fractional seconds to match prior behavior.
+    if (utc.contains('.')) {
+      utc = utc.remove(QRegularExpression("(\\.0*|0*)$"));
+    }
+    return utc;
   }
 
   void iTime::setEt(double et) {
@@ -405,9 +410,15 @@ namespace Isis {
 
   //! Uses the Naif routines to load the most current leap second kernel.
   void iTime::LoadLeapSecondKernel() {
+    // dont furnish and use the built in SpiceQL implementation.
+    if (getenv("ISISDATA") == NULL && QString(getenv("ISISDATA")) == "") {
+      return;
+    }
+  
     // Inorder to improve the speed of iTime comparisons, the leapsecond
     // kernel is loaded only once and left open.
     if(p_lpInitialized) return;
+
 
     // Get the leap second kernel file open
     Isis::PvlGroup &dataDir = Isis::Preference::Preferences().findGroup("DataDirectory");

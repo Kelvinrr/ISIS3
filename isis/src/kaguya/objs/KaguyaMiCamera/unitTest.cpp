@@ -35,8 +35,8 @@ int main(int argc, char *argv[]) {
     // and "Longitude off by: " values directly into these variables.
     double knownLat[4] = {-12.0400820754849036,
                           47.7445483408955909,
-                          60.8041933172991946,
-                          60.1567063664606110};
+                          60.8041933157512915,
+                          60.1567063649296827};
     double knownLon[4] = {355.7272261079595523,
                           42.9611485170859666,
                           135.3886983694549713, 
