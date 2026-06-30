@@ -55,9 +55,6 @@ namespace Isis {
   void FileList::read(FileName listFile) {
     QString path = listFile.toString();
 
-    // GDAL virtual file systems (e.g. /vsicurl/, /vsis3/, /vsimem/) are not
-    // accessible through std::ifstream. Read the whole list via GDAL VSI and
-    // delegate to the stream-based parser below.
     if (path.startsWith("/vsi")) {
       VSILFILE *fp = VSIFOpenL(path.toUtf8().constData(), "rb");
       if (!fp) {
@@ -194,8 +191,6 @@ namespace Isis {
   void FileList::write(FileName outputFileList) {
     QString path = outputFileList.toString();
 
-    // GDAL virtual file systems (e.g. /vsis3/, /vsimem/) are not writable
-    // through std::ofstream. Format the list in memory and write it via VSI.
     if (path.startsWith("/vsi")) {
       std::ostringstream oss;
       write(oss);
