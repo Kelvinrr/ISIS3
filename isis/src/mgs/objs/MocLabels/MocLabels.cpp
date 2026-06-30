@@ -222,7 +222,7 @@ namespace Isis {
     // Initialize the maps from sample coordinate to detector coordinates
     InitDetectorMaps();
 
-    bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+    bool useWeb = Preference::Preferences().useWebSpice();
 
     auto [output, kernels] = SpiceQL::strSclkToEt(-94, p_clockCount.toLatin1().data(), "mgs", useWeb);
     p_etStart = output; 
@@ -458,7 +458,7 @@ namespace Isis {
       sclk.Remove("\"");
       sclk.Trim(" ");
 
-      bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+      bool useWeb = Preference::Preferences().useWebSpice();
       auto [et, kernels] = SpiceQL::strSclkToEt(-94, currentSclk, "mgs", useWeb);
 
       //Compare time against given parameters, if it fits, process

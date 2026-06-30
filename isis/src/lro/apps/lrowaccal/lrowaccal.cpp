@@ -666,7 +666,7 @@ namespace Isis {
         }
         catch(IException &e) {
           try {
-            bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+            bool useWeb = Preference::Preferences().useWebSpice();
 
             iTime startTime((QString) inst["StartTime"]);
             double etStart = startTime.Et();

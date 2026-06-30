@@ -484,7 +484,7 @@ namespace Isis {
   
           NaifStatus::CheckErrors();
   
-          bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+          bool useWeb = Preference::Preferences().useWebSpice();
           auto [obsStartTime, kernels] = SpiceQL::strSclkToEt(-77, startTime.toStdString(), "galileo", useWeb);
           spicegll.setTime(obsStartTime);
           double sunv[3];

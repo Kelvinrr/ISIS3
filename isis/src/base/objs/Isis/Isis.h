@@ -13,6 +13,8 @@ find files of those names at the top level of this repository. **/
 
 #include <QCoreApplication>
 
+#include <spiceql.h>
+
 #include "Application.h"
 
 #ifndef APPLICATION
@@ -97,7 +99,12 @@ int main(int argc, char *argv[]) {
   }
 
   Isis::Application::p_applicationForceGuiApp  = false;
+  if (getenv("ISISDATA") != NULL && QString(getenv("ISISDATA")) != "") {
+    SpiceQL::Inventory::setDbFilePath(std::string(getenv("ISISDATA")) + "/base/", true);
+  }
+  
 
+  SpiceQL::addAliasKey("Mars_Reconnaissance_Orbiter", "MRO");
 #ifdef USE_GUI_QAPP
   Isis::Application::p_applicationForceGuiApp = true;
 #endif

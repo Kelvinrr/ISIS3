@@ -386,7 +386,7 @@ namespace Isis {
       // Failed to instantiate a camera, try furnishing kernels directly
       try {
         NaifStatus::CheckErrors();
-        bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+        bool useWeb = Preference::Preferences().useWebSpice();
         double sunv[3];
         double et  = SpiceQL::utcToEt(t.toLatin1().data(), useWeb).first;
 

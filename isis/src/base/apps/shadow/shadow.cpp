@@ -77,13 +77,31 @@ namespace Isis {
         userKernels = true;
       }
       
-      bool useWeb = QString(Preference::Preferences().findGroup("SpiceQL")["UseSpiceQL"]).toUpper() == "TRUE";
+      bool useWeb = Preference::Preferences().useWebSpice();
 
       if (userKernels) {
-        auto [output, kernels] = SpiceQL::getTargetStates(etStart, "sun", observer, bff, "NONE", "base", {"reconstructed"}, {"reconstructed"}, useWeb, true);
+        auto [output, kernels] = SpiceQL::getTargetStates(etStart, 
+                                                          "sun", 
+                                                          observer, 
+                                                          bff, 
+                                                          "NONE", 
+                                                          "base", 
+                                                          {"reconstructed"}, 
+                                                          {"reconstructed"}, 
+                                                          false,
+                                                          false);
         sunLt = output;
-      } else {
-        auto [output, kernels] = SpiceQL::getTargetStates(etStart, "sun", observer, bff, "NONE", SpiceQL::getSpiceqlName(observer), {"reconstructed"}, {"reconstructed"}, useWeb);
+      } 
+      else {
+        auto [output, kernels] = SpiceQL::getTargetStates(etStart, 
+                                                          "sun", 
+                                                          observer, 
+                                                          bff, 
+                                                          "NONE", 
+                                                          SpiceQL::getSpiceqlName(observer), 
+                                                          {"reconstructed"}, 
+                                                          {"reconstructed"}, 
+                                                          useWeb);
         sunLt = output; 
       }
 
@@ -93,11 +111,29 @@ namespace Isis {
       lightTime = sunLt[0][6];
       etStart = {time.Et() - lightTime};
 
-      if (userKernels){
-        auto [output, kernels]  = SpiceQL::getTargetStates(etStart, "sun", observer, bff, "NONE", "base", {"reconstructed"}, {"reconstructed"}, useWeb, true);
+      if (userKernels) {
+        auto [output, kernels]  = SpiceQL::getTargetStates(etStart, 
+                                                           "sun", 
+                                                           observer, 
+                                                           bff, 
+                                                           "NONE", 
+                                                           "base", 
+                                                           {"reconstructed"}, 
+                                                           {"reconstructed"}, 
+                                                           false,
+                                                           false);
         sunLt = output;
-      }else{
-        auto [output, kernels]  =SpiceQL::getTargetStates(etStart, "sun", observer, bff, "NONE", SpiceQL::getSpiceqlName(observer), {"reconstructed"}, {"reconstructed"}, useWeb);
+      } 
+      else {
+        auto [output, kernels]  =SpiceQL::getTargetStates(etStart, 
+                                                          "sun", 
+                                                          observer, 
+                                                          bff, 
+                                                          "NONE", 
+                                                          SpiceQL::getSpiceqlName(observer), 
+                                                          {"reconstructed"}, 
+                                                          {"reconstructed"}, 
+                                                          useWeb);
         sunLt = output;   
       }
       

@@ -138,6 +138,7 @@ namespace Isis {
       int size() const {
         return m_values.size();
       };
+      
       bool isNull(const int index = 0) const;
       void clear();
 

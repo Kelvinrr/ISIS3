@@ -136,13 +136,13 @@ namespace Isis {
 
       static bool matches(const Pvl &lab, PvlGroup &kernelDbGrp,
                           iTime timeToMatch, int cameraVersion);
-    private:
-      friend class ::KernelDbFixture_TestKernelsSmithOffset_Test; 
-      
+
       void loadKernelDbFiles(PvlGroup &dataDir,
                              QString directory,
                              const Pvl &lab);
       void readKernelDbFiles();
+    private:
+      friend class ::KernelDbFixture_TestKernelsSmithOffset_Test; 
 
       QStringList files(PvlGroup &grp);
       QString m_filename; /**< The name of the kernel database file. This

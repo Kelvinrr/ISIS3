@@ -424,7 +424,7 @@ namespace Isis {
       SpiceInt *m_bodyFrameCode;   /**< Naif's BODY_FRAME_CODE value. It is read
                                         from the labels, if it exists. Otherwise,
                                         it's calculated by the init() method.*/
-
+      QString m_mission_name; 
       PvlObject *m_naifKeywords; //!< NaifKeywords PvlObject from cube
 
       bool m_usingNaif; /**< Indicates whether we are reading values from the

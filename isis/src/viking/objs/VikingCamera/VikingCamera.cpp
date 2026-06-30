@@ -163,9 +163,9 @@ namespace Isis {
 
     // find center shutter time
     double centerTime = shuttertimes.first.Et() + exposureDuration / 2.0;
-    char timepds[25];
-    et2utc_c(centerTime, "ISOC", 3, 25, timepds);
-    utc2et_c(timepds, &centerTime);
+    iTime centerITime(centerTime);
+    iTime centerITimeUTC(centerITime.UTC(3));
+    centerTime = centerITimeUTC.Et();
 
     // Setup detector map
     new CameraDetectorMap(this);

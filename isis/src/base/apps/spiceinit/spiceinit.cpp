@@ -22,20 +22,23 @@
 #include "Table.h"
 #include "UserInterface.h"
 #include "spiceinit.h"
+#include <ale/Load.h>
+#include <nlohmann/json.hpp>
 
+using json = nlohmann::json;
 using namespace std;
 
 namespace Isis {
 
   void getUserEnteredKernel(UserInterface &ui, const QString &param, Kernel &kernel);
-  bool tryKernels(Cube *icube, Process &p, UserInterface &ui, Pvl *log,
-                  Kernel lk, Kernel pck,
-                  Kernel targetSpk, Kernel ck,
-                  Kernel fk, Kernel ik,
-                  Kernel sclk, Kernel spk,
-                  Kernel iak, Kernel dem,
-                  Kernel exk);
-
+  PvlGroup createKernelGroup(const PvlGroup &currentKernels, UserInterface &ui,
+                             Kernel lk, Kernel pck,
+                             Kernel targetSpk, Kernel ck,
+                             Kernel fk, Kernel ik,
+                             Kernel sclk, Kernel spk,
+                             Kernel iak, Kernel dem,
+                             Kernel exk);
+  bool tryKernels(Cube *icube, UserInterface &ui, Pvl *log, PvlGroup &currentKernels);
   void requestSpice(Cube *icube, UserInterface &ui, Pvl *log, Pvl &labels, QString missionName);
 
   /**
@@ -110,6 +113,66 @@ namespace Isis {
 
     if (ui.GetBoolean("WEB")) {
       requestSpice(icube, ui, log, *icube->label(), mission);
+    }
+    else if (Preference::Preferences().useWebSpice()) { 
+      PvlGroup currentKernels = icube->group("Kernels");
+      std::vector<QString> keywordsToRemove = {"CameraVersion",
+                                               "ShapeModel",
+                                               "Source",
+                                               "LeapSecond",
+                                               "TargetAttitudeShape",
+                                               "TargetPosition",
+                                               "InstrumentPointing",
+                                               "Instrument",
+                                               "SpacecraftClock",
+                                               "InstrumentPosition",
+                                               "InstrumentAddendum",
+                                               "ShapeModel",
+                                               "InstrumentPositionQuality",
+                                               "InstrumentPointingQuality",
+                                               "Extra"};
+      for (QString keyword : keywordsToRemove) {
+        if (currentKernels.hasKeyword(keyword))
+          currentKernels.deleteKeyword(keyword);
+      }
+
+      if (ui.GetBoolean("CKNADIR")) {
+        PvlKeyword instPointing("InstrumentPointing");
+        instPointing.addValue("Nadir");
+        currentKernels += instPointing;
+      }
+
+      // Get shape kernel
+      Kernel dem;
+      if (ui.GetString("SHAPE") == "USER") {
+        getUserEnteredKernel(ui, "MODEL", dem);
+      }
+      else if (ui.GetString("SHAPE") == "SYSTEM") {
+        KernelDb baseKernels(0);
+
+        // Get the base DataDirectory
+        PvlGroup &dataDir = Preference::Preferences().findGroup("DataDirectory");
+        QString baseDir = dataDir["Base"];
+        baseKernels.loadKernelDbFiles(dataDir, baseDir + "/dems", lab);
+        baseKernels.readKernelDbFiles();
+        dem = baseKernels.dem(lab);
+      }
+      PvlKeyword demKeyword("ShapeModel");
+      if (ui.GetString("SHAPE") == "RINGPLANE") {
+          demKeyword.addValue("RingPlane");
+      }
+      else {
+        for (int i = 0; i < dem.size(); i++) {
+          demKeyword.addValue(dem[i]);
+        }
+      }
+      currentKernels += demKeyword;
+      bool kernelSuccess = tryKernels(icube, ui, log, currentKernels);
+      if (!kernelSuccess) {
+        throw IException(IException::Unknown,
+                  "Unable to initialize camera model",
+                  _FILEINFO_);
+      }
     }
     else {
       // Get system base kernels
@@ -272,9 +335,11 @@ namespace Isis {
 
         realCkKernel.setKernels(ckKernelList);
 
+        PvlGroup currentKernels = createKernelGroup(icube->group("kernels"), ui,
+                                   lk, pck, targetSpk,
+                                   realCkKernel, fk, ik, sclk, spk, iak, dem, exk);
 
-        kernelSuccess = tryKernels(icube, p, ui, log, lk, pck, targetSpk,
-                                realCkKernel, fk, ik, sclk, spk, iak, dem, exk);
+        kernelSuccess = tryKernels(icube, ui, log, currentKernels);
       }
       if (!kernelSuccess) {
         throw IException(IException::Unknown,
@@ -313,9 +378,8 @@ namespace Isis {
    * @param(in/out) icube The Cube to create the camera from. If attach is true
    *                      in the options, then the SPICE data will be written
    *                      to the Cube's file.
-   * @param p The process object that the Cube belongs to
-   * @param options The spiceinit options
-   * @param(out) log The Application log
+   * @param originalKernels The cubes kernels group to use as a base for the output kernels group
+   * @param ui Userinterface from the spiceinit app
    * @param lk The leap second kernels
    * @param pck The planetary constant kernels
    * @param targetspk The target state kernels
@@ -328,14 +392,22 @@ namespace Isis {
    * @param dem The digital elevation model
    * @param exk The extra kernels
    *
-   * @return If a camera model was successfully created
+   * @return New kernels group with updated kernels from input
    */
-  bool tryKernels(Cube *icube, Process &p, UserInterface &ui, Pvl *log,
-                  Kernel lk, Kernel pck,
-                  Kernel targetSpk, Kernel ck,
-                  Kernel fk, Kernel ik, Kernel sclk,
-                  Kernel spk, Kernel iak,
-                  Kernel dem, Kernel exk) {
+  PvlGroup createKernelGroup(const PvlGroup &originalKernels,
+                             UserInterface &ui,
+                             Kernel lk, 
+                             Kernel pck,
+                             Kernel targetSpk, 
+                             Kernel ck,
+                             Kernel fk,
+                             Kernel ik,
+                             Kernel sclk,
+                             Kernel spk,
+                             Kernel iak,
+                             Kernel dem,
+                             Kernel exk) 
+  {
     // Add the new kernel files to the existing kernels group
     PvlKeyword lkKeyword("LeapSecond");
     PvlKeyword pckKeyword("TargetAttitudeShape");
@@ -385,7 +457,6 @@ namespace Isis {
       exkKeyword.addValue(exk[i]);
     }
 
-    PvlGroup originalKernels = icube->group("Kernels");
     PvlGroup currentKernels = originalKernels;
     currentKernels.addKeyword(lkKeyword, Pvl::Replace);
     currentKernels.addKeyword(pckKeyword, Pvl::Replace);
@@ -396,15 +467,6 @@ namespace Isis {
     currentKernels.addKeyword(spkKeyword, Pvl::Replace);
     currentKernels.addKeyword(iakKeyword, Pvl::Replace);
     currentKernels.addKeyword(demKeyword, Pvl::Replace);
-
-    // Save off the CSM State so it can be restored if spiceinit fails
-    Blob csmState("CSMState", "String");
-    if (icube->hasBlob("CSMState", "String")) {
-      icube->read(csmState);
-    }
-
-    // Delete the CSM State blob so that CameraFactory doesn't try to instantiate a CSMCamera
-    icube->deleteBlob("CSMState", "String");
 
     // report qualities
     PvlKeyword spkQuality("InstrumentPositionQuality");
@@ -421,6 +483,24 @@ namespace Isis {
     else if (currentKernels.hasKeyword("EXTRA")) {
       currentKernels.deleteKeyword("EXTRA");
     }
+
+    return currentKernels;
+  }
+
+  /**
+   * Attempt to create a camera model from a set of kernels.
+   *
+   * @param(in/out) icube The Cube to create the camera from. If attach is true
+   *                      in the options, then the SPICE data will be written
+   *                      to the Cube's file.
+   * @param icube The process object that the Cube belongs to
+   * @param ui The spiceinit options
+   * @param log(out) log The Application log
+   * @param currentKernels kernel set to attempt to load
+   *
+   * @return If a camera model was successfully created
+   */
+  bool tryKernels(Cube *icube, UserInterface &ui, Pvl *log, PvlGroup &currentKernels) {
 
     // Get rid of old keywords from previously inited cubes
     if (currentKernels.hasKeyword("Source"))
@@ -471,14 +551,26 @@ namespace Isis {
         PvlKeyword("CameraVersion", toString(CameraFactory::CameraVersion(*icube))),
         Pvl::Replace);
 
+    // Save off the old kernels group so it can be restored if spiceinit fails
+    PvlGroup originalKernels = icube->group("Kernels");
+
+    // Save off the CSM State so it can be restored if spiceinit fails
+    Blob csmState("CSMState", "String");
+    if (icube->hasBlob("CSMState", "String")) {
+      icube->read(csmState);
+    }
+
     // Add the modified Kernels group to the input cube labels
     icube->putGroup(currentKernels);
+
+    // Delete the CSM State blob so that CameraFactory doesn't try to instantiate a CSMCamera
+    icube->deleteBlob("CSMState", "String");
 
     // Create the camera so we can get blobs if necessary
     try {
       Camera *cam;
       try {
-        cam = icube->camera();
+        cam = CameraFactory::Create(*icube);
         currentKernels = icube->group("Kernels");
 
         PvlKeyword source("Source");
@@ -504,7 +596,9 @@ namespace Isis {
         icube->putGroup(originalKernels);
 
         // restore CSM State blob if spiceinit failed
-        icube->write(csmState);
+        if (csmState.Size() > 0) {
+          icube->write(csmState);
+        }
 
         throw IException(e);
       }
@@ -513,6 +607,11 @@ namespace Isis {
         Table ckTable = cam->instrumentRotation()->Cache("InstrumentPointing");
         ckTable.Label() += PvlKeyword("Description", "Created by spiceinit");
         ckTable.Label() += PvlKeyword("Kernels");
+
+        const PvlKeyword &ckKeyword = currentKernels.findKeyword("InstrumentPointing");
+        const PvlKeyword &spkKeyword = currentKernels.findKeyword("InstrumentPosition");
+        const PvlKeyword &pckKeyword = currentKernels.findKeyword("TargetAttitudeShape");
+        const PvlKeyword &targetSpkKeyword = currentKernels.findKeyword("TargetPosition");
 
         for (int i = 0; i < ckKeyword.size(); i++)
           ckTable.Label()["Kernels"].addValue(ckKeyword[i]);
@@ -607,7 +706,7 @@ namespace Isis {
         }
       }
     }
-    catch(IException &) {
+    catch(IException &e) {
       icube->putGroup(originalKernels);
       return false;
     }
@@ -652,6 +751,24 @@ namespace Isis {
     QString shape     = QString(ui.GetString("SHAPE")).toLower();
 
     if (shape == "user") {
+      shape = "ellipsoid";
+    }
+
+    QString webShapeModel;
+    if (shape == "web") {
+      KernelDb webShapeDb(0);
+      webShapeModel = webShapeDb.getGlobalDemTiffUrl(labels);
+
+      if (webShapeModel.isEmpty()) {
+        PvlGroup &dataDir = Preference::Preferences().findGroup("DataDirectory");
+        QString baseDir = dataDir["Base"];
+        webShapeDb.loadKernelDbFiles(dataDir, baseDir + "/dems", labels);
+        webShapeDb.readKernelDbFiles();
+        Kernel demKernel = webShapeDb.dem(labels);
+        if (demKernel.size() > 0) {
+          webShapeModel = demKernel[0];
+        }
+      }
       shape = "ellipsoid";
     }
 
@@ -700,6 +817,9 @@ namespace Isis {
 
     if (ui.GetString("SHAPE") == "USER") {
       kernelsGroup["ShapeModel"] = ui.GetCubeName("MODEL");
+    }
+    else if (ui.GetString("SHAPE") == "WEB" && !webShapeModel.isEmpty()) {
+      kernelsGroup["ShapeModel"] = webShapeModel;
     }
 
     icube->putGroup(kernelsGroup);

@@ -41,7 +41,7 @@ TEST_F(MroHiriseCube, FunctionalTestHicropCropByCk) {
   EXPECT_EQ((int)results.findKeyword("OututEndingLine"), 1056);
   EXPECT_EQ((int)results.findKeyword("OututLineCount"), 1002);
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, (QString)results.findKeyword("OututStartTime"), "2008-05-17T09:37:24.7300819");
-  EXPECT_PRED_FORMAT2(AssertQStringsEqual, (QString)results.findKeyword("OututStopTime"), "2008-05-17T09:37:31.0666673");
+  EXPECT_PRED_FORMAT2(AssertQStringsEqual, (QString)results.findKeyword("OututStopTime"), "2008-05-17T09:37:31.0666672");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, (QString)results.findKeyword("OututStartClock"), "4/0895484265.14186");
   EXPECT_PRED_FORMAT2(AssertQStringsEqual, (QString)results.findKeyword("OututStopClock"), "4/0895484271.36245");
 

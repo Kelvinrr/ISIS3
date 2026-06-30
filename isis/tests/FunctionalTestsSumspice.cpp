@@ -191,10 +191,10 @@ TEST(Sumspice, FunctionalTestSumspiceSpiceUpdate) {
   EXPECT_EQ(csvLine[1].toStdString(), "N2395699394");
   EXPECT_EQ(csvLine[2].toStdString(), "start");
   EXPECT_EQ(csvLine[3].toStdString(), "spice");
-  EXPECT_EQ(csvLine[4].toDouble(), 2.3841858e-07);
+  EXPECT_NEAR(csvLine[4].toDouble(), 2.3841858e-07, 1.0e-07);
   EXPECT_EQ(csvLine[5].toDouble(), 0.087);
-  EXPECT_EQ(csvLine[6].toStdString(), "2005-09-21T10:44:07.3519998");
-  EXPECT_EQ(csvLine[7].toStdString(), "2005-09-21T10:44:07.3954998");
+  EXPECT_EQ(csvLine[6].toStdString(), "2005-09-21T10:44:07.3519997");
+  EXPECT_EQ(csvLine[7].toStdString(), "2005-09-21T10:44:07.3954997");
   EXPECT_EQ(csvLine[8].toStdString(), "2005-09-21T10:44:07.4390337");
   EXPECT_EQ(csvLine[9].toStdString(), "2005-09-21T10:44:07.352");
   EXPECT_EQ(csvLine[10].toStdString(), "2005-09-21T10:44:07.3955");

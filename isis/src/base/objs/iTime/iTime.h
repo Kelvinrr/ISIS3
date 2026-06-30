@@ -76,7 +76,7 @@ namespace Isis {
       iTime(const double time) {
         if(!p_lpInitialized)
           LoadLeapSecondKernel();
-
+        
         p_et = time;
       }
 
