@@ -11,6 +11,9 @@ find files of those names at the top level of this repository. **/
 #include "IString.h"
 #include <iostream>
 #include <fstream>
+#include <sstream>
+
+#include "cpl_vsi.h"
 
 using namespace std;
 namespace Isis {
@@ -50,6 +53,39 @@ namespace Isis {
    * @throws Isis::iException::Io - Cannot open file
    */
   void FileList::read(FileName listFile) {
+    QString path = listFile.toString();
+
+    // GDAL virtual file systems (e.g. /vsicurl/, /vsis3/, /vsimem/) are not
+    // accessible through std::ifstream. Read the whole list via GDAL VSI and
+    // delegate to the stream-based parser below.
+    if (path.startsWith("/vsi")) {
+      VSILFILE *fp = VSIFOpenL(path.toUtf8().constData(), "rb");
+      if (!fp) {
+        QString message = Isis::Message::FileOpen(path);
+        throw IException(IException::Io, message, _FILEINFO_);
+      }
+
+      // Read the entire file in chunks (a cube list can be arbitrarily large,
+      // so do not assume a fixed buffer size).
+      std::string contents;
+      char buffer[65536];
+      size_t nRead;
+      while ((nRead = VSIFReadL(buffer, 1, sizeof(buffer), fp)) > 0) {
+        contents.append(buffer, nRead);
+      }
+      VSIFCloseL(fp);
+
+      try {
+        std::istringstream iss(contents);
+        read(iss);
+      }
+      catch (IException &e) {
+        QString msg = "File [" + path + "] contains no data";
+        throw IException(IException::User, msg, _FILEINFO_);
+      }
+      return;
+    }
+
     // Open the file
     ifstream istm;
     istm.open(listFile.toString().toLatin1().data(), std::ios::in);
@@ -156,6 +192,25 @@ namespace Isis {
    * @throws Isis::iException::Io File could not be created.
    */
   void FileList::write(FileName outputFileList) {
+    QString path = outputFileList.toString();
+
+    // GDAL virtual file systems (e.g. /vsis3/, /vsimem/) are not writable
+    // through std::ofstream. Format the list in memory and write it via VSI.
+    if (path.startsWith("/vsi")) {
+      std::ostringstream oss;
+      write(oss);
+      std::string data = oss.str();
+
+      VSILFILE *fp = VSIFOpenL(path.toUtf8().constData(), "wb");
+      if (!fp) {
+        QString message = Message::FileOpen(path);
+        throw IException(IException::Io, message, _FILEINFO_);
+      }
+      VSIFWriteL(data.data(), 1, data.size(), fp);
+      VSIFCloseL(fp);
+      return;
+    }
+
     // Open the file
     ofstream ostm;
     ostm.open(outputFileList.toString().toLatin1().data(), std::ios::out);
