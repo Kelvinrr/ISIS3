@@ -33,6 +33,7 @@ dependencies:
   - jama
   - kalasiris
   - krb5
+  - libboost >=1.88.0,<1.89
   - libgdal >=3.12.2,<4
   - libgdal-arrow-parquet >=3.12,<4
   - libopencv >=4.12,<5
