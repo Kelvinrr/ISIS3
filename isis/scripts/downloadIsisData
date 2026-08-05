@@ -50,7 +50,6 @@ KERNEL_FILTERS = [
         '- SpecialProducts/**'
     ]
 
-# curated USGS buckets, only strip build artifacts
 TESTDATA_FILTERS = [
         '- print.prt',
         '- ~?'
