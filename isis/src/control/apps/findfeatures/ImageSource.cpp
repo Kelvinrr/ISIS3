@@ -142,21 +142,24 @@ bool ImageSource::isCubeReadable(const QString &name) {
 
 
 /**
- * @brief Compose a serial number for a Cube, falling back to its file name
+ * @brief Compose a serial number for a Cube
  *
- * Files read through GDAL will not always have the instrument labels
- * SerialNumber requires, in which case the base file name is used as the
- * identity.
+ * The serial number is the identity of the image in the output control
+ * network, so a failure to compose one is fatal rather than silently
+ * substituted.
  *
  * @param cube  Cube to compose a serial number for
  * @param ifile File name of the cube
  *
- * @return QString The serial number or, failing that, the base file name
+ * @return QString The serial number
  */
 QString ImageSource::composeSerialNumber(Cube &cube, const FileName &ifile) {
   QString serialno = SerialNumber::Compose(cube, true);
   if ( serialno.isEmpty() || ("Unknown" == serialno) ) {
-    return ( ifile.baseName() );
+    QString mess = "Could not compose a serial number for " +
+                   ifile.original() + ". The image must have the instrument "
+                   "labels required to identify it in a control network.";
+    throw IException(IException::User, mess, _FILEINFO_);
   }
   return ( serialno );
 }
