@@ -161,7 +161,7 @@ namespace Isis {
     }
 
     QApplication::restoreOverrideCursor();
-    filter = "Control net (*.net *.cnet *.ctl *.parquet);;";
+    filter = "Control net (*.net *.cnet *.ctl);;";
     filter += "Pvl file (*.pvl);;";
     filter += "Text file (*.txt);;";
     filter += "All (*)";
@@ -277,7 +277,7 @@ namespace Isis {
    *
    */
   void QnetFileTool::saveAs() {
-    QString filter = "Control net (*.net *.cnet *.ctl *.parquet);;";
+    QString filter = "Control net (*.net *.cnet *.ctl);;";
     filter += "Pvl file (*.pvl);;";
     filter += "Text file (*.txt);;";
     filter += "All (*)";
