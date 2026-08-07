@@ -156,7 +156,7 @@ bool ImageSource::isCubeReadable(const QString &name) {
 QString ImageSource::composeSerialNumber(Cube &cube, const FileName &ifile) {
   QString serialno = SerialNumber::Compose(cube, true);
   if ( serialno.isEmpty() || ("Unknown" == serialno) ) {
-    throw IException(IException::User, mess, _FILEINFO_);
+    return ( ifile.baseName() );
   }
   return ( serialno );
 }
