@@ -156,9 +156,6 @@ bool ImageSource::isCubeReadable(const QString &name) {
 QString ImageSource::composeSerialNumber(Cube &cube, const FileName &ifile) {
   QString serialno = SerialNumber::Compose(cube, true);
   if ( serialno.isEmpty() || ("Unknown" == serialno) ) {
-    QString mess = "Could not compose a serial number for " +
-                   ifile.original() + ". The image must have the instrument "
-                   "labels required to identify it in a control network.";
     throw IException(IException::User, mess, _FILEINFO_);
   }
   return ( serialno );
