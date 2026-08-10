@@ -292,7 +292,9 @@ void SpiceDbGen::AddSplitSelections(PvlObject &result, FileName currFile,
  *
  * Projects that deliver mixed reconstructed and predicted data in a single kernel record the date
  * the source ephemeris was provided by the flight dynamics team in the comments. The data before
- * that date is reconstructed and the data after it is predicted.
+ * that date is reconstructed and the data after it is predicted. This is meant to support TGO 
+ * Casis which has a delivery date in the comments of its SPK kernels. Anything after that 
+ * delivery date is predicted and anything before it is reconstructed.
  *
  * @param fileIn The kernel to read
  *
