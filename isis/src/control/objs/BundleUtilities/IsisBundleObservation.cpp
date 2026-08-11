@@ -1076,7 +1076,7 @@ QStringList IsisBundleObservation::parameterList() {
 
     Camera *measureCamera = measure.camera();
     BundleControlPoint *point = measure.parentControlPoint();
-    SurfacePoint surfacePoint = point->adjustedSurfacePoint();
+    const SurfacePoint &surfacePoint = point->adjustedSurfacePointRef();
 
     int index = 0;
 
@@ -1273,21 +1273,21 @@ QStringList IsisBundleObservation::parameterList() {
    *                     the ground point.
    * @param measure The measure that the partials are being
    *                computed for.
+   * @param adjustedSurfacePoint The adjusted surface point of the measure's parent point.
    * @param coordType Specifies whether latitudinal or (x, y, z)
    *                  coordinates are used.
    *
    * @return bool
    */
-  bool IsisBundleObservation::computePoint3DPartials(matrix<double> &coeffPoint3D, BundleMeasure &measure, SurfacePoint::CoordinateType coordType) {
+  bool IsisBundleObservation::computePoint3DPartials(matrix<double> &coeffPoint3D, BundleMeasure &measure, const SurfacePoint &adjustedSurfacePoint, SurfacePoint::CoordinateType coordType) {
     coeffPoint3D.clear();
     Camera *measureCamera = measure.camera();
-    BundleControlPoint* point = measure.parentControlPoint();
 
     // These vectors are either body-fixed latitudinal (lat/lon/radius) or rectangular (x/y/z)
     // depending on the value of coordinate type in SurfacePoint
-    std::vector<double> lookBWRTCoord1 = point->adjustedSurfacePoint().Partial(coordType, SurfacePoint::One);
-    std::vector<double> lookBWRTCoord2 = point->adjustedSurfacePoint().Partial(coordType, SurfacePoint::Two);
-    std::vector<double> lookBWRTCoord3 = point->adjustedSurfacePoint().Partial(coordType, SurfacePoint::Three);
+    std::vector<double> lookBWRTCoord1 = adjustedSurfacePoint.Partial(coordType, SurfacePoint::One);
+    std::vector<double> lookBWRTCoord2 = adjustedSurfacePoint.Partial(coordType, SurfacePoint::Two);
+    std::vector<double> lookBWRTCoord3 = adjustedSurfacePoint.Partial(coordType, SurfacePoint::Three);
 
     measureCamera->GroundMap()->GetdXYdPoint(lookBWRTCoord1,
                                              &coeffPoint3D(0, 0),
@@ -1329,7 +1329,7 @@ QStringList IsisBundleObservation::parameterList() {
     // lat/lon/radius.  As of 05/15/2019, this call no longer does the back-of-planet test. An optional
     // bool argument was added CameraGroundMap::GetXY to turn off the test.
     double computedX, computedY;
-    if (!(measureCamera->GroundMap()->GetXY(point->adjustedSurfacePoint(),
+    if (!(measureCamera->GroundMap()->GetXY(point->adjustedSurfacePointRef(),
                                             &computedX, &computedY, false))) {
       QString msg = "Unable to map apriori surface point for measure ";
       msg += measure.cubeSerialNumber() + " on point " + point->id() + " into focal plane";

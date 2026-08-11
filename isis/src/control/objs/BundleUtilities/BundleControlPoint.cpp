@@ -486,6 +486,12 @@ namespace Isis {
   }
 
 
+  // avoids the SurfacePoint copy, which heap allocates coordinates and covariance
+  const SurfacePoint &BundleControlPoint::adjustedSurfacePointRef() const {
+    return m_controlPoint->AdjustedSurfacePointRef();
+  }
+
+
   /**
    * Accesses the Point ID associated with this BundleControlPoint.
    *

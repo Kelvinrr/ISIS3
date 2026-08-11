@@ -134,6 +134,7 @@ namespace Isis {
       int numberOfRejectedMeasures() const;
       double residualRms() const;
       SurfacePoint adjustedSurfacePoint() const;
+      const SurfacePoint &adjustedSurfacePointRef() const;
       QString id() const;
       ControlPoint::PointType type() const;
       SurfacePoint::CoordinateType coordTypeReports() const;

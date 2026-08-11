@@ -770,7 +770,7 @@ namespace Isis {
    *
    * @return void
    */
-  std::vector<double> SurfacePoint::Partial(CoordinateType type, CoordIndex index) {
+  std::vector<double> SurfacePoint::Partial(CoordinateType type, CoordIndex index) const {
     std::vector<double> derivative(3);
     switch (type) {
       case Latitudinal:
@@ -795,7 +795,7 @@ namespace Isis {
    *
    * @return @b std::vector<double>  The derivative of the latitudinal to body-fixed vector
    */
-  std::vector<double> SurfacePoint::LatitudinalDerivative(CoordIndex index) {
+  std::vector<double> SurfacePoint::LatitudinalDerivative(CoordIndex index) const {
     std::vector<double> derivative(3);
     double rlat = GetLatitude().radians();
     double rlon = GetLongitude().radians();
@@ -837,7 +837,7 @@ namespace Isis {
    *
    * @return @b std::vector<double>  The derivative of the body-fixed vector
    */
-  std::vector<double> SurfacePoint::RectangularDerivative(CoordIndex index) {
+  std::vector<double> SurfacePoint::RectangularDerivative(CoordIndex index) const {
     std::vector<double> derivative(3,0.0);
 
     switch (index) {

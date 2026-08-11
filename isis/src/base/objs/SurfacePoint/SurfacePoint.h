@@ -233,7 +233,7 @@ namespace Isis {
    
       //! Compute partial derivative of conversion from body-fixed coordinates to the specified
       //    coordinate type with respect to the indicated coordinate (specified by index).     
-      std::vector<double> Partial(CoordinateType type, CoordIndex index);
+      std::vector<double> Partial(CoordinateType type, CoordIndex index) const;
       
 // Output methods
       double GetCoord(CoordinateType type, CoordIndex index, CoordUnits units);
@@ -284,8 +284,8 @@ namespace Isis {
       Distance GetDistanceToPoint(const SurfacePoint &other) const;
       Distance GetDistanceToPoint(const SurfacePoint &other,
           const Distance &sphereRadius) const;
-      std::vector<double> LatitudinalDerivative(CoordIndex index);
-      std::vector<double> RectangularDerivative(CoordIndex index);
+      std::vector<double> LatitudinalDerivative(CoordIndex index) const;
+      std::vector<double> RectangularDerivative(CoordIndex index) const;
 
 // Misc methods
       void ToNaifArray(double naifOutput[3]) const;

@@ -11,6 +11,11 @@ find files of those names at the top level of this repository. **/
 
 #include <QObject> // parent class
 
+// qt lib
+#include <QMutex>
+#include <QSharedPointer>
+#include <QVector>
+
 // std lib
 #include <vector>
 #include <fstream>
@@ -401,6 +406,22 @@ namespace Isis {
       void finished();
 
     private:
+      //! Partial derivatives and residual statistics for a single measure.
+      struct MeasurePartials {
+        MeasurePartials(int numTargetPartials = 0) : coeffTarget(2, numTargetPartials),
+            coeffPoint3D(2, 3), coeffRHS(2), residualX(0.0), residualY(0.0),
+            residualR2ZScore(0.0), observationIndex(-1), valid(false) { }
+        LinearAlgebra::Matrix coeffTarget;
+        LinearAlgebra::Matrix coeffImage;
+        LinearAlgebra::Matrix coeffPoint3D;
+        LinearAlgebra::Vector coeffRHS;
+        double residualX;
+        double residualY;
+        double residualR2ZScore;
+        int observationIndex;
+        bool valid;
+      };
+
       //TODO Should there be a resetBundle(BundleSettings bundleSettings) method
       //     that allows for rerunning with new settings? JWB
       void readIsdList(const QString &isdList, const QString &cubeList);
@@ -421,12 +442,12 @@ namespace Isis {
       // normal equation matrices methods
 
       bool formNormalEquations();
-      bool computePartials(LinearAlgebra::Matrix  &coeffTarget,
-                           LinearAlgebra::Matrix  &coeffImage,
-                           LinearAlgebra::Matrix  &coeffPoint3D,
-                           LinearAlgebra::Vector  &coeffRHS,
-                           BundleMeasure          &measure,
-                           BundleControlPoint     &point);
+      bool observationsAreThreadSafe(QString &reason);
+      void computePointPartials(QVector<MeasurePartials> &partials, BundleControlPoint &point);
+      void accumulateMeasureStatistics(const MeasurePartials &partials);
+      bool computePartials(MeasurePartials    &partials,
+                           BundleMeasure      &measure,
+                           BundleControlPoint &point);
       bool formMeasureNormals(LinearAlgebra::MatrixUpperTriangular &N22,
                               SparseBlockColumnMatrix              &N12,
                               LinearAlgebra::VectorCompressed      &n1,
@@ -535,9 +556,8 @@ namespace Isis {
       LinearAlgebra::Vector m_imageSolution;                 /**!< The image parameter solution
                                                                    vector.*/
 
-      int m_previousNumberImagePartials;                     /**!< used in ::computePartials method
-                                                                   to avoid unnecessary resizing
-                                                                   of the coeffImage matrix.*/
+      bool m_threadedNormals;                                //!< thread the ::formNormalEquations point loop
+      QVector< QSharedPointer<QMutex> > m_observationLocks;  //!< serializes camera access per observation
   };
 }
 

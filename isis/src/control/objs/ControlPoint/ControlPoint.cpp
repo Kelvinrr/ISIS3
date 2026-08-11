@@ -1194,6 +1194,7 @@ namespace Isis {
 
     // Loop for each measure to compute the error
     QList<QString> keys = measures->keys();
+    const SurfacePoint &adjusted = AdjustedSurfacePointRef();
 
     for (int j = 0; j < keys.size(); j++) {
       ControlMeasure *m = (*measures)[keys[j]];
@@ -1214,7 +1215,7 @@ namespace Isis {
       // This does not work with CSM as it does not have a focal plane so
       // just use the sample and line
       if (cam->GetCameraType() == Camera::Csm) {
-        cam->SetGround(GetAdjustedSurfacePoint());
+        cam->SetGround(adjusted);
         cudx = cam->Sample();
         cudy = cam->Line();
         // Reset to measure
@@ -1226,7 +1227,7 @@ namespace Isis {
           cam->SetImage(m->GetSample(), m->GetLine());
         }
         // The default bool value is true.  Turn back-of-planet test off for bundle adjustment.
-        cam->GroundMap()->GetXY(GetAdjustedSurfacePoint(), &cudx, &cudy, false);
+        cam->GroundMap()->GetXY(adjusted, &cudx, &cudy, false);
       }
 
       m->SetFocalPlaneComputed(cudx, cudy);
@@ -1276,6 +1277,12 @@ namespace Isis {
 
 
   SurfacePoint ControlPoint::GetAdjustedSurfacePoint() const {
+    return adjustedSurfacePoint;
+  }
+
+
+  // avoids the SurfacePoint copy, which heap allocates coordinates and covariance
+  const SurfacePoint &ControlPoint::AdjustedSurfacePointRef() const {
     return adjustedSurfacePoint;
   }
 
