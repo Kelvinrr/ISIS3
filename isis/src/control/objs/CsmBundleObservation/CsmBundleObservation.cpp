@@ -160,7 +160,7 @@ namespace Isis {
    *
    * @return @b bool Returns true upon successful application of corrections
    */
-  bool CsmBundleObservation::applyParameterCorrections(LinearAlgebra::Vector corrections) {
+  bool CsmBundleObservation::applyParameterCorrections(const LinearAlgebra::Vector &corrections) {
     // Check that the correction vector is the correct size
     if (corrections.size() != m_paramIndices.size()) {
       QString msg = "Invalid correction vector passed to observation.";

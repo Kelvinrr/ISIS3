@@ -53,7 +53,7 @@ namespace Isis {
 
       const BundleObservationSolveSettingsQsp solveSettings();
 
-      bool applyParameterCorrections(LinearAlgebra::Vector corrections);
+      bool applyParameterCorrections(const LinearAlgebra::Vector &corrections);
 
       void bundleOutputString(std::ostream &fpOut,bool errorPropagation);
       QString bundleOutputCSV(bool errorPropagation);

@@ -505,7 +505,7 @@ namespace Isis {
 //                                      const Distance &radius);
 
       Status ComputeApriori();
-      Status ComputeResiduals();
+      Status ComputeResiduals(bool computeMillimeters = true);
       Status ComputeResiduals_Millimeters();
 
       SurfacePoint GetAdjustedSurfacePoint() const;

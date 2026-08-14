@@ -402,7 +402,7 @@ namespace Isis {
    *
    * @return @b bool Returns true upon successful application of corrections
    */
-  bool IsisBundleObservation::applyParameterCorrections(LinearAlgebra::Vector corrections) {
+  bool IsisBundleObservation::applyParameterCorrections(const LinearAlgebra::Vector &corrections) {
 
     int index = 0;
 

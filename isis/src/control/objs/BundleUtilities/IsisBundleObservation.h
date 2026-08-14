@@ -64,7 +64,7 @@ namespace Isis {
 
       const BundleObservationSolveSettingsQsp solveSettings();
 
-      bool applyParameterCorrections(LinearAlgebra::Vector corrections);
+      bool applyParameterCorrections(const LinearAlgebra::Vector &corrections);
       bool initializeExteriorOrientation();
       void initializeBodyRotation();
       void updateBodyRotation();

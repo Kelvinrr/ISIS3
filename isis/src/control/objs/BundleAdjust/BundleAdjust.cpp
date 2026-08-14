@@ -9,19 +9,16 @@ find files of those names at the top level of this repository. **/
 #include "BundleAdjust.h"
 
 // std lib
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
 // qt lib
-#include <QAtomicInt>
 #include <QCoreApplication>
 #include <QDataStream>
 #include <QDebug>
 #include <QFile>
-#include <QMutex>
-#include <QThreadPool>
-#include <QtConcurrentMap>
 
 // csm lib
 #include <csm/Model.h>
@@ -495,7 +492,6 @@ namespace Isis {
    */
   void BundleAdjust::init(Progress *progress) {
     emit(statusUpdate("Initialization"));
-    m_threadedNormals = false;
 
     // initialize
     //
@@ -504,6 +500,7 @@ namespace Isis {
     m_iteration = 0;
     m_rank = 0;
     m_iterationSummary = "";
+    m_focalPlaneComputedStored = false;
 
     // Get the cameras set up for all images
     // NOTE - THIS IS NOT THE SAME AS "setImage" as called in BundleAdjust::computePartials
@@ -971,6 +968,24 @@ namespace Isis {
       // start the clock
       clock_t solveStartClock = clock();
 
+      // the residual sweep and the next iteration's partials sweep evaluate the same geometry at
+      // the same parameters, so fuse them unless something changes the normals in between
+      bool fuseResiduals = !m_bundleSettings->outlierRejection()
+                           && m_bundleResults.numberMaximumLikelihoodModels() == 0
+                           && m_bundleLidarControlPoints.isEmpty()
+                           && !hasRejectedMeasures();
+
+      if (fuseResiduals) {
+        m_focalPlaneComputedStored = true;
+
+        if (!formNormalEquations()) {
+          m_bundleResults.setConverged(false);
+          fuseResiduals = false;
+        }
+
+        m_bundleResults.initializeResidualsProbabilityDistribution(101);
+      }
+
       for (;;) {
 
         emit iterationUpdate(m_iteration);
@@ -989,14 +1004,16 @@ namespace Isis {
         clock_t iterationStartClock = clock();
 
         // zero normals (after iteration 0)
-        if (m_iteration != 1) {
-          m_sparseNormals.zeroBlocks();
-        }
+        if (!fuseResiduals) {
+          if (m_iteration != 1) {
+            m_sparseNormals.zeroBlocks();
+          }
 
-        // form normal equations -- computePartials is called in here.
-        if (!formNormalEquations()) {
-          m_bundleResults.setConverged(false);
-          break;
+          // form normal equations -- computePartials is called in here.
+          if (!formNormalEquations()) {
+            m_bundleResults.setConverged(false);
+            break;
+          }
         }
 
         // testing
@@ -1036,9 +1053,21 @@ namespace Isis {
         }
         // testing
 
+        // form the next iteration's normal equations at the corrected parameters, which is also
+        // where this iteration's residuals are evaluated
+        if (fuseResiduals) {
+          m_sparseNormals.zeroBlocks();
+          m_focalPlaneComputedStored = true;
+
+          if (!formNormalEquations()) {
+            m_bundleResults.setConverged(false);
+            break;
+          }
+        }
+
         // compute residuals
         emit(statusBarUpdate("Computing Residuals"));
-        computeResiduals();
+        computeResiduals(!fuseResiduals || !m_focalPlaneComputedStored);
 
         // compute vtpv (weighted sum of squares of residuals)
         vtpv = computeVtpv();
@@ -1168,6 +1197,14 @@ namespace Isis {
       } // end of bundle iteration loop
 
       if (m_bundleResults.converged() && m_bundleSettings->errorPropagation()) {
+        // the point Q matrices are from the fused sweep at the converged parameters, so factor
+        // those normal equations to match them
+        if (fuseResiduals && !solveSystem()) {
+          outputBundleStatus("\nsolve failed!");
+          m_bundleResults.setConverged(false);
+          return false;
+        }
+
         clock_t errorPropStartClock = clock();
 
         outputBundleStatus("\nStarting Error Propagation");
@@ -1214,14 +1251,38 @@ namespace Isis {
 
 
   /**
+   * Returns whether any photogrammetric measure entered the adjustment already rejected.
+   *
+   * @return @b bool
+   */
+  bool BundleAdjust::hasRejectedMeasures() {
+    for (int i = 0; i < m_bundleControlPoints.size(); i++) {
+      BundleControlPointQsp point = m_bundleControlPoints.at(i);
+
+      if (point->isRejected()) {
+        return true;
+      }
+
+      for (int j = 0; j < point->size(); j++) {
+        if (point->at(j)->isRejected()) {
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+
+  /**
    * Compute image measure residuals.
    */
-  void BundleAdjust::computeResiduals() {
+  void BundleAdjust::computeResiduals(bool computeMillimeters) {
 
     // residuals for photogrammetric measures
     emit(statusBarUpdate("Computing Measure Residuals"));
     for (int i = 0; i < m_bundleControlPoints.size(); i++) {
-      m_bundleControlPoints.at(i)->computeResiduals();
+      m_bundleControlPoints.at(i)->computeResiduals(computeMillimeters);
     }
 
     // residuals for lidar measures
@@ -1283,6 +1344,9 @@ namespace Isis {
       numTargetPartials = m_bundleSettings->numberTargetBodyParameters();
     }
 
+    // reused by every measure, so its matrices are allocated once for the whole adjustment
+    MeasurePartials partials(numTargetPartials);
+
     // clear N12, n1, and nj
     N12.clear();
     n1.clear();
@@ -1290,27 +1354,6 @@ namespace Isis {
 
     N22.clear();
     n2.clear();
-
-    // one lock per observation serializes access to the cameras it owns
-    if (m_observationLocks.size() != m_bundleObservations.size()) {
-      m_observationLocks.clear();
-      for (int i = 0; i < m_bundleObservations.size(); i++) {
-        m_observationLocks.append(QSharedPointer<QMutex>(new QMutex()));
-      }
-
-      QString reason;
-      m_threadedNormals = observationsAreThreadSafe(reason);
-
-      QString threadStatus = "\nForming normal equations ";
-      if (m_threadedNormals) {
-        threadStatus += "on " +
-            QString::number(QThreadPool::globalInstance()->maxThreadCount()) + " threads\n";
-      }
-      else {
-        threadStatus += "serially: " + reason + "\n";
-      }
-      outputBundleStatus(threadStatus);
-    }
 
     // loop over 3D points
     int numObservations = 0;
@@ -1320,106 +1363,46 @@ namespace Isis {
 
     outputBundleStatus("\n\n");
 
-    // the camera partials for a batch of points are computed concurrently and then accumulated
-    // serially in point order, so the shared normals and running statistics are unchanged
-    int batchSize = 1;
-    if (m_threadedNormals) {
-      batchSize = 8 * QThreadPool::globalInstance()->maxThreadCount();
-    }
+    // serial by necessity: cspice keeps process global state that every camera touches
+    for (int i = 0; i < num3DPoints; i++) {
+      emit(pointUpdate(i+1));
+      BundleControlPointQsp point = m_bundleControlPoints.at(i);
 
-    QVector<int> batchPoints;
-    QVector< QVector<MeasurePartials> > batchPartials;
-
-    for (int batchStart = 0; batchStart < num3DPoints; batchStart += batchSize) {
-      int batchEnd = qMin(batchStart + batchSize, num3DPoints);
-
-      batchPoints.clear();
-      batchPartials.clear();
-
-      for (int i = batchStart; i < batchEnd; i++) {
-        emit(pointUpdate(i+1));
-        BundleControlPointQsp point = m_bundleControlPoints.at(i);
-
-        if (point->isRejected()) {
-          continue;
-        }
-
-        batchPoints.append(i);
-        batchPartials.append(QVector<MeasurePartials>(point->size(),
-                                                     MeasurePartials(numTargetPartials)));
-      }
-
-      if (batchPoints.isEmpty()) {
+      if (point->isRejected()) {
         continue;
       }
 
-      if (m_threadedNormals) {
-        QVector<int> pointSlots(batchPoints.size());
-        for (int k = 0; k < pointSlots.size(); k++) {
-          pointSlots[k] = k;
+      N22.clear();
+      N12.wipe();
+      n2.clear();
+
+      // loop over measures for this point
+      for (int j = 0; j < point->size(); j++) {
+        BundleMeasureQsp measure = point->at(j);
+
+        // flagged as "JigsawFail" implies this measure has been rejected
+        // TODO  IsRejected is obsolete -- replace code or add to ControlMeasure
+        if (measure->isRejected()) {
+          continue;
         }
 
-        QAtomicInt partialsFailed(0);
+        computePartials(partials, *measure, *point);
 
-        // take the buffers up front so the threads never trip QVector's copy on write detach
-        QVector<MeasurePartials> *partialsData = batchPartials.data();
-        const int *pointData = batchPoints.constData();
+        status = true;
 
-        QtConcurrent::blockingMap(pointSlots, [&](int k) {
-          try {
-            computePointPartials(partialsData[k], *m_bundleControlPoints.at(pointData[k]));
-          }
-          catch (std::exception &e) {
-            partialsFailed.storeRelease(1);
-          }
-        });
+        accumulateMeasureStatistics(partials);
 
-        // an IException cannot cross a thread boundary, so recompute serially to raise it
-        if ( partialsFailed.loadAcquire() ) {
-          for (int k = 0; k < batchPoints.size(); k++) {
-            computePointPartials(batchPartials[k], *m_bundleControlPoints.at(batchPoints[k]));
-          }
-        }
-      }
-      else {
-        for (int k = 0; k < batchPoints.size(); k++) {
-          computePointPartials(batchPartials[k], *m_bundleControlPoints.at(batchPoints[k]));
-        }
-      }
+        // increment number of observations
+        numObservations += 2;
 
-      for (int k = 0; k < batchPoints.size(); k++) {
-        BundleControlPointQsp point = m_bundleControlPoints.at(batchPoints[k]);
-        QVector<MeasurePartials> &measurePartials = batchPartials[k];
+        formMeasureNormals(N22, N12, n1, n2, partials.coeffTarget, partials.coeffImage,
+                           partials.coeffPoint3D, partials.coeffRHS, partials.observationIndex);
 
-        N22.clear();
-        N12.wipe();
-        n2.clear();
+      } // end loop over this points measures
 
-        // loop over measures for this point
-        for (int j = 0; j < measurePartials.size(); j++) {
-          MeasurePartials &partials = measurePartials[j];
+      numConstrainedCoordinates += formPointNormals(N22, N12, n2, m_RHS, point);
 
-          // measures flagged as "JigsawFail" or whose partials failed contribute nothing
-          if (!partials.valid) {
-            continue;
-          }
-
-          status = true;
-
-          accumulateMeasureStatistics(partials);
-
-          // increment number of observations
-          numObservations += 2;
-
-          formMeasureNormals(N22, N12, n1, n2, partials.coeffTarget, partials.coeffImage,
-                             partials.coeffPoint3D, partials.coeffRHS, partials.observationIndex);
-
-        } // end loop over this points measures
-
-        numConstrainedCoordinates += formPointNormals(N22, N12, n2, m_RHS, point);
-
-        numGood3DPoints++;
-      }
+      numGood3DPoints++;
     } // end loop over 3D points
 
     m_bundleResults.setNumberConstrainedPointParameters(numConstrainedCoordinates);
@@ -2233,6 +2216,12 @@ namespace Isis {
         msg += measure.cubeSerialNumber() + " on point " + point.id() + " into focal plane";
         throw IException(IException::User, msg, _FILEINFO_);
       }
+
+      // this is what ComputeResiduals_Millimeters would compute for the same parameters
+      measure.setFocalPlaneComputed(computedX, computedY);
+    }
+    else {
+      m_focalPlaneComputedStored = false;
     }
 
     if (m_bundleSettings->solveTargetBody()) {
@@ -2277,43 +2266,12 @@ namespace Isis {
     }
 
     partials.observationIndex = measure.observationIndex();
-    partials.valid = true;
 
     return true;
   }
 
 
-  /**
-   * Compute the partial derivatives for every measure of a control point. The camera and its
-   * spice are mutable state shared by all of an observation's measures, so each observation is
-   * accessed under its own lock.
-   *
-   * @param partials Per measure partial derivative storage, sized to the point's measure count.
-   * @param point The control point to compute partial derivatives for.
-   */
-  void BundleAdjust::computePointPartials(QVector<MeasurePartials> &partials,
-                                          BundleControlPoint &point) {
-    for (int j = 0; j < point.size(); j++) {
-      BundleMeasureQsp measure = point.at(j);
-
-      // flagged as "JigsawFail" implies this measure has been rejected
-      // TODO  IsRejected is obsolete -- replace code or add to ControlMeasure
-      if (measure->isRejected()) {
-        continue;
-      }
-
-      QMutexLocker locker(m_observationLocks.at(measure->observationIndex()).data());
-      computePartials(partials[j], *measure, point);
-    }
-  }
-
-
-  /**
-   * Add a measure's residual observations to the running probability distributions. These are
-   * order dependent, so this must be called serially in measure order.
-   *
-   * @param partials The partial derivatives and residuals of a single measure.
-   */
+  /** Add a measure's residual observations to the running probability distributions. */
   void BundleAdjust::accumulateMeasureStatistics(const MeasurePartials &partials) {
     m_bundleResults.addResidualsProbabilityDistributionObservation(partials.residualX);
     m_bundleResults.addResidualsProbabilityDistributionObservation(partials.residualY);
@@ -2323,56 +2281,6 @@ namespace Isis {
       // Dynamically build the cumulative probability distribution of the R^2 residual Z Scores
       m_bundleResults.addProbabilityDistributionObservation(partials.residualR2ZScore);
     }
-  }
-
-
-  /**
-   * Determine whether the per measure partial derivatives can be computed on multiple threads.
-   * The cameras themselves are serialized per observation, but cspice keeps process global
-   * kernel and error state, so any camera that still reads spice from the kernels rules threading
-   * out. The csm plugins make no thread safety guarantee, so they are excluded as well.
-   *
-   * @param reason Set to why threading was refused, when it is refused.
-   *
-   * @return @b bool If the point loop in formNormalEquations can be threaded.
-   */
-  bool BundleAdjust::observationsAreThreadSafe(QString &reason) {
-    if (QThreadPool::globalInstance()->maxThreadCount() < 2) {
-      reason = "only one thread is available";
-      return false;
-    }
-
-    for (int i = 0; i < m_bundleObservations.size(); i++) {
-      BundleObservationQsp observation = m_bundleObservations.at(i);
-
-      for (int j = 0; j < observation->size(); j++) {
-        BundleImageQsp image = observation->at(j);
-        Camera *camera = image->camera();
-
-        if (!camera) {
-          reason = "no camera for " + image->fileName();
-          return false;
-        }
-
-        if (camera->GetCameraType() == Camera::Csm) {
-          reason = "csm cameras are not thread safe";
-          return false;
-        }
-
-        if (camera->instrumentPosition()->GetSource() == SpicePosition::Spice ||
-            camera->sunPosition()->GetSource() == SpicePosition::Spice ||
-            camera->instrumentRotation()->GetSource() == SpiceRotation::Spice ||
-            camera->bodyRotation()->GetSource() == SpiceRotation::Spice) {
-          reason = "spice is not cached for " + image->fileName();
-          return false;
-        }
-      }
-    }
-
-    // cspice configures its error handling on first use, so get that out of the way here
-    NaifStatus::CheckErrors();
-
-    return true;
   }
 
 
@@ -2725,38 +2633,133 @@ namespace Isis {
 
 
   /**
-  * This method returns the image list used in the bundle adjust. If a QList<ImageList *> was passed
-  * into the constructor then it uses that list, otherwise it constructs the QList using the
-  * m_serialNumberList
+  * This method returns the image list passed into the constructor, which is empty unless the
+  * bundle adjust was constructed with one.
   *
   * @return QList<ImageList *> The ImageLists used for the bundle adjust
   */
   QList<ImageList *> BundleAdjust::imageLists() {
-
-    if (m_imageLists.count() > 0) {
-      return m_imageLists;
-    }
-    else if (m_serialNumberList->size() > 0) {
-      ImageList *imgList = new ImageList;
-      try {
-        for (int i = 0; i < m_serialNumberList->size(); i++) {
-          Image *image = new Image(m_serialNumberList->fileName(i));
-          imgList->append(image);
-          image->closeCube();
-        }
-        m_imageLists.append(imgList);
-      }
-      catch (IException &e) {
-        QString msg = "Invalid image in serial number list\n";
-        throw IException(IException::Programmer, msg, _FILEINFO_);
-      }
-    }
-    else {
+    // the list is not built from the serial number list when absent, as that opened every cube to
+    // fill an image list nothing reads
+    if (m_imageLists.isEmpty() && m_serialNumberList->size() < 1) {
       QString msg = "No images used in bundle adjust\n";
       throw IException(IException::Programmer, msg, _FILEINFO_);
     }
 
     return m_imageLists;
+  }
+
+
+  /** Compute the inverse of the reduced normal equations on the sparsity pattern of its Cholesky factor, by the Takahashi recurrence. */
+  bool BundleAdjust::computeSelectedInverse() {
+    // the recurrence walks the factor's columns through p/i/x, which only a simplicial factor
+    // stores; a supernodal factor keeps its values in dense supernodes instead
+    if (m_L->is_super) {
+      if ( !cholmod_l_change_factor(CHOLMOD_REAL, m_L->is_ll, FALSE, TRUE, TRUE,
+                                    m_L, &m_cholmodCommon) ) {
+        return false;
+      }
+    }
+
+    long n = (long) m_L->n;
+    long *Lp = (long*) m_L->p;
+    long *Li = (long*) m_L->i;
+    double *Lx = (double*) m_L->x;
+    long *Perm = (long*) m_L->Perm;
+    bool isLL = m_L->is_ll;
+
+    m_selectedInversePinv.assign(n, 0);
+    for (long k = 0; k < n; k++) {
+      m_selectedInversePinv[Perm[k]] = k;
+    }
+
+    m_selectedInverse.assign(Lp[n], 0.0);
+    double *Z = m_selectedInverse.data();
+
+    // maps a row of the current column's below-diagonal pattern to its offset in that pattern
+    std::vector<long> pos(n, -1);
+    std::vector<double> lv;
+    std::vector<double> zv;
+
+    for (long j = n - 1; j >= 0; j--) {
+      long pdiag = Lp[j];
+      long m = Lp[j+1] - pdiag - 1;
+      double djj = Lx[pdiag];
+
+      if (m == 0) {
+        Z[pdiag] = isLL ? 1.0 / (djj*djj) : 1.0 / djj;
+        continue;
+      }
+
+      lv.assign(m, 0.0);
+      for (long t = 0; t < m; t++) {
+        pos[Li[pdiag + 1 + t]] = t;
+        lv[t] = Lx[pdiag + 1 + t];
+      }
+
+      // the pattern below the diagonal of a column is a clique of the filled graph, so every
+      // inverse entry this sum needs was computed by an earlier, higher numbered column
+      zv.assign(m, 0.0);
+      for (long t = 0; t < m; t++) {
+        long c = Li[pdiag + 1 + t];
+        double lvt = lv[t];
+        double acc = 0.0;
+
+        for (long k = Lp[c]; k < Lp[c+1]; k++) {
+          long u = pos[Li[k]];
+          if (u < 0) {
+            continue;
+          }
+          double z = Z[k];
+          acc += z * lv[u];
+          if (u != t) {
+            zv[u] += z * lvt;
+          }
+        }
+        zv[t] += acc;
+      }
+
+      double scale = isLL ? -1.0 / djj : -1.0;
+      double diagonalSum = 0.0;
+      for (long t = 0; t < m; t++) {
+        zv[t] *= scale;
+        Z[pdiag + 1 + t] = zv[t];
+        diagonalSum += lv[t] * zv[t];
+        pos[Li[pdiag + 1 + t]] = -1;
+      }
+
+      Z[pdiag] = isLL ? (1.0/djj) * (1.0/djj - diagonalSum) : 1.0/djj - diagonalSum;
+    }
+
+    return true;
+  }
+
+
+  /** Look up an unpermuted entry of the selected inverse, zero if it lies off the pattern of the factor. */
+  double BundleAdjust::selectedInverseEntry(long row, long column) const {
+    long a = m_selectedInversePinv[row];
+    long b = m_selectedInversePinv[column];
+
+    if (a < b) {
+      std::swap(a, b);
+    }
+
+    long *Lp = (long*) m_L->p;
+    long *Li = (long*) m_L->i;
+
+    if (a == b) {
+      return m_selectedInverse[Lp[b]];
+    }
+
+    long lo = Lp[b] + 1;
+    long hi = Lp[b+1];
+    long *found = std::lower_bound(Li + lo, Li + hi, a);
+
+    if (found != Li + hi && *found == a) {
+      return m_selectedInverse[found - Li];
+    }
+
+    return 0.0;
   }
 
 
@@ -2786,6 +2789,9 @@ namespace Isis {
     cholmod_l_free_triplet(&m_cholmodTriplet, &m_cholmodCommon);
     cholmod_l_free_sparse(&m_cholmodNormal, &m_cholmodCommon);
 
+    LinearAlgebra::Matrix T(3, 3);
+    LinearAlgebra::Matrix TQ(3, 3);
+
     // *** TODO ***
     // Can any of the control point specific code be moved to BundleControlPoint?
 
@@ -2807,16 +2813,14 @@ namespace Isis {
       pointCovariances[d].clear();
     }
 
-    cholmod_dense *x = NULL; // solution vector
-    cholmod_dense *b;        // right-hand side (column vectors of identity)
+    cholmod_dense *x = NULL; // solution vectors
+    cholmod_dense *b = NULL; // right-hand sides (column vectors of identity)
 
-    // workspace reused by cholmod_l_solve2 across every column solve below
+    // workspace reused by cholmod_l_solve2 across the block column solves below
     cholmod_dense *ywork = NULL;
     cholmod_dense *ework = NULL;
 
-    b = cholmod_l_zeros ( m_rank, 1, CHOLMOD_REAL, &m_cholmodCommon );
-    double *pb = (double*)b->x;
-
+    double *pb = NULL;
     double *px = NULL;
 
     SparseBlockColumnMatrix inverseMatrix;
@@ -2830,6 +2834,22 @@ namespace Isis {
     int columnIndex = 0;
     int numColumns = 0;
     int numBlockColumns = m_sparseNormals.size();
+
+    // the accumulation below only reads inverse blocks at positions where two images share a
+    // point, which are exactly the nonzero blocks of the reduced normals, so the inverse entries
+    // on the pattern of the factor are enough. the dense inverse is kept for the correlation
+    // matrix file, which stores every block column in full.
+    bool useSelectedInverse = !m_bundleSettings->createInverseMatrix()
+                              && !m_bundleSettings->denseInverse();
+
+    if (useSelectedInverse) {
+      outputBundleStatus("\rError Propagation: computing selected inverse");
+      if ( !computeSelectedInverse() ) {
+        QString msg = "Failed to compute the selected inverse of the normal equations.";
+        throw IException(IException::Programmer, msg, _FILEINFO_);
+      }
+      outputBundleStatus("\n\n");
+    }
 
     // a point only contributes to the block columns its Q matrix has blocks for, so index the
     // points by block column instead of rescanning every point for every column
@@ -2862,7 +2882,32 @@ namespace Isis {
 
       // columns in this column block
       SparseBlockColumnMatrix *normalsColumn = m_sparseNormals.at(i);
-      if (i == 0) {
+
+      if (useSelectedInverse) {
+        numColumns = normalsColumn->numberOfColumns();
+        int startColumn = normalsColumn->startColumn();
+
+        inverseMatrix.wipe();
+
+        QMapIterator< int, LinearAlgebra::Matrix * > nit(*normalsColumn);
+        while ( nit.hasNext() ) {
+          nit.next();
+
+          int rowBlock = nit.key();
+          int numRows = nit.value()->size1();
+          int startRow = m_sparseNormals.at(rowBlock)->startColumn();
+
+          inverseMatrix.insertMatrixBlock(rowBlock, numRows, numColumns);
+          LinearAlgebra::Matrix *block = inverseMatrix.value(rowBlock);
+
+          for (int r = 0; r < numRows; r++) {
+            for (int c = 0; c < numColumns; c++) {
+              (*block)(r,c) = selectedInverseEntry(startRow + r, startColumn + c);
+            }
+          }
+        }
+      }
+      else if (i == 0) {
         numColumns = normalsColumn->numberOfColumns();
         int numRows = normalsColumn->numberOfRows();
         inverseMatrix.insertMatrixBlock(i, numRows, numColumns);
@@ -2890,34 +2935,44 @@ namespace Isis {
         }
       }
 
-      int localCol = 0;
-
-      // solve for inverse for nCols
-      for (j = 0; j < numColumns; j++) {
-        if ( columnIndex > 0 ) {
-          pb[columnIndex - 1] = 0.0;
+      // all of this block column's right-hand sides go through cholmod in one call, which puts
+      // the triangular solves on the blas3 path instead of doing m_rank single column solves
+      if ( !useSelectedInverse ) {
+        if ( b == NULL || (int)b->ncol != numColumns ) {
+          cholmod_l_free_dense ( &b, &m_cholmodCommon );
+          b = cholmod_l_zeros ( m_rank, numColumns, CHOLMOD_REAL, &m_cholmodCommon );
+          pb = (double*)b->x;
         }
-        pb[columnIndex] = 1.0;
+
+        for (j = 0; j < numColumns; j++) {
+          pb[(columnIndex + j) + j*b->d] = 1.0;
+        }
 
         cholmod_l_solve2 ( CHOLMOD_A, m_L, b, NULL, &x, NULL, &ywork, &ework,
                            &m_cholmodCommon );
         px = (double*)x->x;
-        int rp = 0;
 
-        // store solution in corresponding column of inverse
-        for (k = 0; k < inverseMatrix.size(); k++) {
-          LinearAlgebra::Matrix *matrix = inverseMatrix.value(k);
+        // store each solution in the corresponding column of inverse
+        for (j = 0; j < numColumns; j++) {
+          int rp = 0;
 
-          int sz1 = matrix->size1();
+          for (k = 0; k < inverseMatrix.size(); k++) {
+            LinearAlgebra::Matrix *matrix = inverseMatrix.value(k);
 
-          for (int ii = 0; ii < sz1; ii++) {
-            (*matrix)(ii,localCol) = px[ii + rp];
+            int sz1 = matrix->size1();
+
+            for (int ii = 0; ii < sz1; ii++) {
+              (*matrix)(ii,j) = px[ii + rp + j*x->d];
+            }
+            rp += sz1;
           }
-          rp += matrix->size1();
         }
 
-        columnIndex++;
-        localCol++;
+        for (j = 0; j < numColumns; j++) {
+          pb[(columnIndex + j) + j*b->d] = 0.0;
+        }
+
+        columnIndex += numColumns;
       }
 
       // save adjusted target body sigmas if solving for target
@@ -2950,8 +3005,7 @@ namespace Isis {
       }
 
       // now loop over the object points that contribute to this block column, summing
-      // contributions into their 3x3 point covariance matrices. each point owns its own
-      // covariance block, so the points are independent and can be run concurrently
+      // contributions into their 3x3 point covariance matrices
       QList<int> &contributingPoints = pointsInBlockColumn[i];
 
       status = "\rError Propagation: Inverse Block ";
@@ -2968,9 +3022,7 @@ namespace Isis {
         emit(pointUpdate(contributingPoints.last()+1));
       }
 
-      QAtomicInt accumulationFailed(0);
-
-      auto accumulatePoint = [&](int pointIndex) {
+      foreach (int pointIndex, contributingPoints) {
         BundleControlPointQsp point = m_bundleControlPoints.at(pointIndex);
 
         // get corresponding Q matrix
@@ -2978,8 +3030,6 @@ namespace Isis {
         //       in the BundleControlPoint for speed (without the & it is dirt slow)
         SparseBlockRowMatrix &Q = point->cholmodQMatrix();
 
-        LinearAlgebra::Matrix T(3, 3);
-        LinearAlgebra::Matrix TQ(3, 3);
         T.clear();
 
         // get corresponding point covariance matrix
@@ -3024,20 +3074,12 @@ namespace Isis {
           }
 
           catch (std::exception &e) {
-            // IException cannot cross a thread boundary, so flag it and throw on the main thread
-            accumulationFailed.storeRelease(1);
-            return;
+            outputBundleStatus("\n\n");
+            QString msg = "Input data and settings are not sufficiently stable "
+                          "for error propagation.";
+            throw IException(IException::User, msg, _FILEINFO_);
           }
         }
-      };
-
-      QtConcurrent::blockingMap(contributingPoints, accumulatePoint);
-
-      if ( accumulationFailed.loadAcquire() ) {
-        outputBundleStatus("\n\n");
-        QString msg = "Input data and settings are not sufficiently stable "
-                      "for error propagation.";
-        throw IException(IException::User, msg, _FILEINFO_);
       }
     }
 

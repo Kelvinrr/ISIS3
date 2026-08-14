@@ -1138,7 +1138,7 @@ namespace Isis {
     m_uB[1] = uB[1];
     m_uB[2] = uB[2];
 
-    computeSolarLongitude(*m_et);
+    // the solar longitude is left to solarLongitude(), which computes it for the current time
   }
 
   /**

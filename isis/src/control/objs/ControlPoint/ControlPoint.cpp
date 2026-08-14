@@ -1021,7 +1021,7 @@ namespace Isis {
    *                           points in a control net AFTER bundle adjustment. References #2591.
    *
    */
-  ControlPoint::Status ControlPoint::ComputeResiduals() {
+  ControlPoint::Status ControlPoint::ComputeResiduals(bool computeMillimeters) {
     if (IsIgnored()) {
       return Failure;
     }
@@ -1030,6 +1030,15 @@ namespace Isis {
 
     // Loop for each measure to compute the error
     QList<QString> keys = measures->keys();
+
+    // Map the coordinates of the control point through the Spice of the
+    // measurement sample/line to get the computed sample/line.  This must be
+    // done manually because the camera will compute a new time for line scanners,
+    // instead of using the measured time.
+    // this fills every measure at once, so it is called before the loop rather than in it
+    if (computeMillimeters) {
+      ComputeResiduals_Millimeters();
+    }
 
     for (int j = 0; j < keys.size(); j++) {
       ControlMeasure *m = (*measures)[keys[j]];
@@ -1042,12 +1051,6 @@ namespace Isis {
       double cuSamp;
       double cuLine;
       CameraFocalPlaneMap *fpmap = m->Camera()->FocalPlaneMap();
-
-      // Map the coordinates of the control point through the Spice of the
-      // measurement sample/line to get the computed sample/line.  This must be
-      // done manually because the camera will compute a new time for line scanners,
-      // instead of using the measured time.
-      ComputeResiduals_Millimeters();
 
       // Convert the residuals in millimeters to undistorted pixels
       if (cam->GetCameraType()  ==  Isis::Camera::Radar) {

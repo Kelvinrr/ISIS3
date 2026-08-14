@@ -114,8 +114,8 @@ namespace Isis {
        * @param name The name of the keyword to compare with this one.
        * @return True if the names are equal, false if not.
        */
-      bool isNamed(QString name) const {
-        return stringEqual(name, this->name());
+      bool isNamed(const QString &name) const {
+        return stringEqual(name, m_name);
       };
 
       void setValue(QString value, QString unit = "");
@@ -237,6 +237,12 @@ namespace Isis {
 
       static bool stringEqual(const QString &string1,
                               const QString &string2);
+
+      static bool stringEqual(const QString &string1,
+                              const char *string2);
+
+      static bool stringEqual(const char *string1,
+                              const char *string2);
 
 
       static QString readLine(std::istream &is, bool insideComment);

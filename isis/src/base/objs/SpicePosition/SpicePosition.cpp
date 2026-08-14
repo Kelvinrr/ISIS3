@@ -26,6 +26,21 @@ find files of those names at the top level of this repository. **/
 using json = nlohmann::json;
 
 namespace Isis {
+  namespace {
+    // equivalent to PolynomialUnivariate::Evaluate, without building the term vector
+    double evaluatePolynomial(const std::vector<double> &coefficients, int degree, double t) {
+      double term = 1.0;
+      double result = 0.0;
+
+      for (int i = 0; i <= degree; i++) {
+        result += coefficients[i] * term;
+        term *= t;
+      }
+
+      return result;
+    }
+  }
+
   /**
    * Construct an empty SpicePosition class using valid body codes.
    * See required reading
@@ -1353,24 +1368,14 @@ namespace Isis {
    *   @history 2011-01-05 Debbie A. Cook - Original version
    */
   void SpicePosition::SetEphemerisTimePolyFunction() {
-    // Create the empty functions
-    Isis::PolynomialUnivariate functionX(p_degree);
-    Isis::PolynomialUnivariate functionY(p_degree);
-    Isis::PolynomialUnivariate functionZ(p_degree);
-
-    // Load the coefficients to define the functions
-    functionX.SetCoefficients(p_coefficients[0]);
-    functionY.SetCoefficients(p_coefficients[1]);
-    functionZ.SetCoefficients(p_coefficients[2]);
-
     // Normalize the time
     double rtime;
     rtime = (p_et - p_baseTime) / p_timeScale;
 
     // Evaluate the polynomials at current et to get position;
-    p_coordinate[0] = functionX.Evaluate(rtime);
-    p_coordinate[1] = functionY.Evaluate(rtime);
-    p_coordinate[2] = functionZ.Evaluate(rtime);
+    p_coordinate[0] = evaluatePolynomial(p_coefficients[0], p_degree, rtime);
+    p_coordinate[1] = evaluatePolynomial(p_coefficients[1], p_degree, rtime);
+    p_coordinate[2] = evaluatePolynomial(p_coefficients[2], p_degree, rtime);
 
     if(p_hasVelocity) {
 

@@ -76,7 +76,7 @@ namespace Isis {
 
       virtual const BundleObservationSolveSettingsQsp solveSettings() = 0;
       virtual int numberParameters() = 0;
-      virtual bool applyParameterCorrections(LinearAlgebra::Vector corrections) = 0;
+      virtual bool applyParameterCorrections(const LinearAlgebra::Vector &corrections) = 0;
 
       virtual void bundleOutputString(std::ostream &fpOut,bool errorPropagation) = 0;
       virtual QString bundleOutputCSV(bool errorPropagation) = 0;
