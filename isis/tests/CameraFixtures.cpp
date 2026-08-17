@@ -20,6 +20,7 @@
 #include "TableField.h"
 #include "TableRecord.h"
 
+
 using json = nlohmann::json;
 
 namespace Isis {
