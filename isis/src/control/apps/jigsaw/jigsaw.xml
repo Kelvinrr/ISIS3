@@ -1010,7 +1010,7 @@
       </description>
       <type>boolean</type>
       <default>
-        <item>No</item>
+        <item>Yes</item>
       </default>
     </parameter>
    </group>

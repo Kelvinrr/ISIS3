@@ -54,7 +54,7 @@ namespace Isis {
     m_updateCubeLabel      = false;
     m_errorPropagation     = false;
     m_createInverseMatrix  = false;
-    m_denseInverse         = false;
+    m_denseInverse         = true;
     m_cubeList             =    "";
     m_outlierRejection     = false;
     m_outlierRejectionMultiplier = 3.0;
