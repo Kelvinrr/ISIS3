@@ -21,56 +21,6 @@ find files of those names at the top level of this repository. **/
 using namespace std;
 using json = nlohmann::json;
 
-namespace {
-  // names are compared in a single pass, as normalizing them through IString allocates
-  inline bool isIgnoredChar(ushort c) {
-    return c == ' ' || c == '_' || c == '\n' || c == '\r' ||
-           c == '\t' || c == '\f' || c == '\v' || c == '\b';
-  }
-
-  inline ushort upperChar(ushort c) {
-    return (c >= 'a' && c <= 'z') ? c - 32 : c;
-  }
-
-  inline int stringLength(const QString &s) {
-    return s.size();
-  }
-
-  inline int stringLength(const char *s) {
-    return s ? (int) strlen(s) : 0;
-  }
-
-  inline ushort charAt(const QString &s, int i) {
-    return s.at(i).unicode();
-  }
-
-  inline ushort charAt(const char *s, int i) {
-    return (unsigned char) s[i];
-  }
-
-  template <typename S1, typename S2>
-  bool stringsEqual(const S1 &string1, const S2 &string2) {
-    const int length1 = stringLength(string1);
-    const int length2 = stringLength(string2);
-    int i = 0;
-    int j = 0;
-
-    while (true) {
-      while (i < length1 && isIgnoredChar(charAt(string1, i))) i++;
-      while (j < length2 && isIgnoredChar(charAt(string2, j))) j++;
-
-      if (i == length1 || j == length2) break;
-
-      if (upperChar(charAt(string1, i)) != upperChar(charAt(string2, j))) return false;
-
-      i++;
-      j++;
-    }
-
-    return i == length1 && j == length2;
-  }
-}
-
 namespace Isis {
   //! Constructs a blank PvlKeyword object.
   PvlKeyword::PvlKeyword() {
@@ -741,7 +691,7 @@ namespace Isis {
    */
   bool PvlKeyword::stringEqual(const QString &QString1,
                                const QString &QString2) {
-    return stringsEqual(QString1, QString2);
+    return IString::EqualIgnoringCaseAndSeparators(QString1, QString2);
   }
 
 
@@ -755,7 +705,7 @@ namespace Isis {
    */
   bool PvlKeyword::stringEqual(const QString &string1,
                                const char *string2) {
-    return stringsEqual(string1, string2);
+    return IString::EqualIgnoringCaseAndSeparators(string1, string2);
   }
 
 
@@ -769,7 +719,7 @@ namespace Isis {
    */
   bool PvlKeyword::stringEqual(const char *string1,
                                const char *string2) {
-    return stringsEqual(string1, string2);
+    return IString::EqualIgnoringCaseAndSeparators(string1, string2);
   }
 
   /**

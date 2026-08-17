@@ -89,6 +89,9 @@ namespace Isis {
     p_fullCacheStartTime = 0;
     p_fullCacheEndTime = 0;
     p_fullCacheSize = 0;
+    m_cachedCJ.clear();
+    m_cachedAngles.clear();
+    m_cachedAxes.clear();
     m_frameType = UNKNOWN;
     m_tOrientationAvailable = false;
     m_orientation = NULL;
@@ -129,6 +132,9 @@ namespace Isis {
     p_fullCacheEndTime = 0;
 
     p_fullCacheSize = 0;
+    m_cachedCJ.clear();
+    m_cachedAngles.clear();
+    m_cachedAxes.clear();
     m_frameType = DYN;
     m_tOrientationAvailable = false;
     m_orientation = NULL;

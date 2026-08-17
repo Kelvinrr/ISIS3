@@ -961,10 +961,6 @@ namespace Isis {
       double vtpv = 0.0;
       double previousSigma0 = 0.0;
 
-      // the symbolic factorization is retained across iterations, so discard any factor
-      // left over from a previous solve before a new pattern is analyzed
-      cholmod_l_free_factor(&m_L, &m_cholmodCommon);
-
       // start the clock
       clock_t solveStartClock = clock();
 
@@ -1942,7 +1938,8 @@ namespace Isis {
 
     // analyze matrix; the sparsity pattern is fixed after the first iteration so the
     // symbolic factorization is reused for the remainder of the bundle
-    if ( !m_L ) {
+    if (m_iteration == 1) {
+      cholmod_l_free_factor(&m_L, &m_cholmodCommon);
       m_L = cholmod_l_analyze(m_cholmodNormal, &m_cholmodCommon);
     }
 

@@ -185,10 +185,7 @@ namespace Isis {
        * @param key The keyword to compare names with
        */
       bool operator==(const PvlKeyword &key) const {
-        if(!m_name && !key.m_name) return true;
-        if(!m_name || !key.m_name) return false;
-
-        return (stringEqual(m_name, key.m_name));
+        return stringEqual(m_name, key.m_name);
       };
 
       /**
