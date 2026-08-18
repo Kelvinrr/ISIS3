@@ -1076,7 +1076,7 @@ QStringList IsisBundleObservation::parameterList() {
 
     Camera *measureCamera = measure.camera();
     BundleControlPoint *point = measure.parentControlPoint();
-    const SurfacePoint &surfacePoint = point->adjustedSurfacePointRef();
+    const SurfacePoint &surfacePoint = point->adjustedSurfacePoint();
 
     int index = 0;
 
@@ -1329,7 +1329,7 @@ QStringList IsisBundleObservation::parameterList() {
     // lat/lon/radius.  As of 05/15/2019, this call no longer does the back-of-planet test. An optional
     // bool argument was added CameraGroundMap::GetXY to turn off the test.
     double computedX, computedY;
-    if (!(measureCamera->GroundMap()->GetXY(point->adjustedSurfacePointRef(),
+    if (!(measureCamera->GroundMap()->GetXY(point->adjustedSurfacePoint(),
                                             &computedX, &computedY, false))) {
       QString msg = "Unable to map apriori surface point for measure ";
       msg += measure.cubeSerialNumber() + " on point " + point->id() + " into focal plane";

@@ -1197,7 +1197,7 @@ namespace Isis {
 
     // Loop for each measure to compute the error
     QList<QString> keys = measures->keys();
-    const SurfacePoint &adjusted = AdjustedSurfacePointRef();
+    const SurfacePoint &adjusted = GetAdjustedSurfacePoint();
 
     for (int j = 0; j < keys.size(); j++) {
       ControlMeasure *m = (*measures)[keys[j]];
@@ -1279,13 +1279,9 @@ namespace Isis {
   }
 
 
-  SurfacePoint ControlPoint::GetAdjustedSurfacePoint() const {
-    return adjustedSurfacePoint;
-  }
-
-
-  // avoids the SurfacePoint copy, which heap allocates coordinates and covariance
-  const SurfacePoint &ControlPoint::AdjustedSurfacePointRef() const {
+  // returned by reference to avoid the SurfacePoint copy, which heap allocates
+  // its coordinates and covariance
+  const SurfacePoint &ControlPoint::GetAdjustedSurfacePoint() const {
     return adjustedSurfacePoint;
   }
 

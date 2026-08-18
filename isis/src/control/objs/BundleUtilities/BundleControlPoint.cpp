@@ -479,16 +479,10 @@ namespace Isis {
   /**
    * Accesses the adjusted SurfacePoint associated with this BundleControlPoint.
    *
-   * @return @b SurfacePoint The adjusted surface point.
+   * @return @b const SurfacePoint& The adjusted surface point.
    */
-  SurfacePoint BundleControlPoint::adjustedSurfacePoint() const {
+  const SurfacePoint &BundleControlPoint::adjustedSurfacePoint() const {
     return m_controlPoint->GetAdjustedSurfacePoint();
-  }
-
-
-  // avoids the SurfacePoint copy, which heap allocates coordinates and covariance
-  const SurfacePoint &BundleControlPoint::adjustedSurfacePointRef() const {
-    return m_controlPoint->AdjustedSurfacePointRef();
   }
 
 

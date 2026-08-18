@@ -508,8 +508,7 @@ namespace Isis {
       Status ComputeResiduals(bool computeMillimeters = true);
       Status ComputeResiduals_Millimeters();
 
-      SurfacePoint GetAdjustedSurfacePoint() const;
-      const SurfacePoint &AdjustedSurfacePointRef() const;
+      const SurfacePoint &GetAdjustedSurfacePoint() const;
 
       SurfacePoint GetBestSurfacePoint() const;
       QString GetChooserName() const;
