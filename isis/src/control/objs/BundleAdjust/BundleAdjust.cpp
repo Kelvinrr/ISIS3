@@ -797,11 +797,6 @@ namespace Isis {
     m_cholmodCommon.nmethods = 1;
     m_cholmodCommon.method[0].ordering = CHOLMOD_AMD;
 
-    // the supernodal factorization dispatches into BLAS3, which is substantially faster on the
-    // dense blocks the reduced normal equations produce. It can only form LL', so solveSystem
-    // falls back to CHOLMOD's own choice if the matrix turns out not to be positive definite.
-    m_cholmodCommon.supernodal = CHOLMOD_SUPERNODAL;
-
     return true;
   }
 
@@ -1947,16 +1942,6 @@ namespace Isis {
     // CHOLMOD will choose LLT or LDLT decomposition based on the characteristics of the matrix.
     cholmod_l_factorize(m_cholmodNormal, m_L, &m_cholmodCommon);
 
-    // the supernodal factorization can only form LL'. If it fails, let CHOLMOD choose the method
-    // itself so a matrix that needs LDL' still factorizes.
-    if (m_cholmodCommon.status == CHOLMOD_NOT_POSDEF
-        && m_cholmodCommon.supernodal == CHOLMOD_SUPERNODAL) {
-      m_cholmodCommon.supernodal = CHOLMOD_AUTO;
-      cholmod_l_free_factor(&m_L, &m_cholmodCommon);
-      m_L = cholmod_l_analyze(m_cholmodNormal, &m_cholmodCommon);
-      cholmod_l_factorize(m_cholmodNormal, m_L, &m_cholmodCommon);
-    }
-
     // check for "matrix not positive definite" error
     if (m_cholmodCommon.status == CHOLMOD_NOT_POSDEF) {
       QString msg = "Matrix NOT positive-definite: failure at column " + toString((int) m_L->minor);
@@ -2183,7 +2168,7 @@ namespace Isis {
 
     Camera *measureCamera = measure.camera();
     BundleObservationQsp observation = measure.parentBundleObservation();
-    const SurfacePoint &adjustedSurfacePoint = point.adjustedSurfacePointRef();
+    const SurfacePoint &adjustedSurfacePoint = point.adjustedSurfacePoint();
 
     int numImagePartials = observation->numberParameters();
 
