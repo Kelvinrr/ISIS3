@@ -26,21 +26,6 @@ find files of those names at the top level of this repository. **/
 using json = nlohmann::json;
 
 namespace Isis {
-  namespace {
-    // equivalent to PolynomialUnivariate::Evaluate, without building the term vector
-    double evaluatePolynomial(const std::vector<double> &coefficients, int degree, double t) {
-      double term = 1.0;
-      double result = 0.0;
-
-      for (int i = 0; i <= degree; i++) {
-        result += coefficients[i] * term;
-        term *= t;
-      }
-
-      return result;
-    }
-  }
-
   /**
    * Construct an empty SpicePosition class using valid body codes.
    * See required reading
@@ -1373,9 +1358,9 @@ namespace Isis {
     rtime = (p_et - p_baseTime) / p_timeScale;
 
     // Evaluate the polynomials at current et to get position;
-    p_coordinate[0] = evaluatePolynomial(p_coefficients[0], p_degree, rtime);
-    p_coordinate[1] = evaluatePolynomial(p_coefficients[1], p_degree, rtime);
-    p_coordinate[2] = evaluatePolynomial(p_coefficients[2], p_degree, rtime);
+    p_coordinate[0] = PolynomialUnivariate::Evaluate(p_coefficients[0], rtime);
+    p_coordinate[1] = PolynomialUnivariate::Evaluate(p_coefficients[1], rtime);
+    p_coordinate[2] = PolynomialUnivariate::Evaluate(p_coefficients[2], rtime);
 
     if(p_hasVelocity) {
 

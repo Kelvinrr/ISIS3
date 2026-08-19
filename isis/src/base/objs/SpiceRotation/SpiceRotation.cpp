@@ -48,21 +48,6 @@ extern int ck3sdn(double sdntol, bool avflag, int *nrec,
                   int *intarr);
 
 namespace Isis {
-  namespace {
-    // equivalent to PolynomialUnivariate::Evaluate, without building the term vector
-    double evaluatePolynomial(const std::vector<double> &coefficients, int degree, double t) {
-      double term = 1.0;
-      double result = 0.0;
-
-      for (int i = 0; i <= degree; i++) {
-        result += coefficients[i] * term;
-        term *= t;
-      }
-
-      return result;
-    }
-  }
-
   /**
    * Construct an empty SpiceRotation class using a valid Naif frame code to
    * set up for getting rotation from Spice kernels.  See required reading
@@ -3430,9 +3415,9 @@ namespace Isis {
   std::vector<double> SpiceRotation::EvaluatePolyFunction() {
    double rtime = (p_et - p_baseTime) / p_timeScale;
    std::vector<double> angles;
-   angles.push_back(evaluatePolynomial(p_coefficients[0], p_degree, rtime));
-   angles.push_back(evaluatePolynomial(p_coefficients[1], p_degree, rtime));
-   angles.push_back(evaluatePolynomial(p_coefficients[2], p_degree, rtime));
+   angles.push_back(PolynomialUnivariate::Evaluate(p_coefficients[0], rtime));
+   angles.push_back(PolynomialUnivariate::Evaluate(p_coefficients[1], rtime));
+   angles.push_back(PolynomialUnivariate::Evaluate(p_coefficients[2], rtime));
 
    // Get the first angle back into the range Naif expects [-180.,180.]
    if (angles[0] <= -1 * pi_c()) {
@@ -3455,9 +3440,9 @@ namespace Isis {
    NaifStatus::CheckErrors();
 
    double rtime = (p_et - p_baseTime) / p_timeScale;
-   double angle1 = evaluatePolynomial(p_coefficients[0], p_degree, rtime);
-   double angle2 = evaluatePolynomial(p_coefficients[1], p_degree, rtime);
-   double angle3 = evaluatePolynomial(p_coefficients[2], p_degree, rtime);
+   double angle1 = PolynomialUnivariate::Evaluate(p_coefficients[0], rtime);
+   double angle2 = PolynomialUnivariate::Evaluate(p_coefficients[1], rtime);
+   double angle3 = PolynomialUnivariate::Evaluate(p_coefficients[2], rtime);
 
    // Get the first angle back into the range Naif expects [-180.,180.]
    if (angle1 < -1 * pi_c()) {
